@@ -1,0 +1,27 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: system-ui, sans-serif;
+}
+
+h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.25rem;
+}
+
+p {
+  color: #666;
+}
+
+.status span.online {
+  color: #22c55e;
+  font-weight: bold;
+}
+
+.status span.offline {
+  color: #ef4444;
+  font-weight: bold;
+}
