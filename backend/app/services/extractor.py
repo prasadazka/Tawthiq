@@ -1,0 +1,146 @@
+import io
+import os
+import google.generativeai as genai
+from google.cloud import documentai
+from google.api_core.client_options import ClientOptions
+from dotenv import load_dotenv
+
+load_dotenv()
+
+_gemini_configured = False
+DOCAI_PAGE_LIMIT = 15  # Process in chunks of 15 pages
+
+
+def configure_gemini():
+    global _gemini_configured
+    if _gemini_configured:
+        return
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY not set in environment")
+    genai.configure(api_key=api_key)
+    _gemini_configured = True
+
+
+def _get_docai_client():
+    location = os.getenv("GCP_LOCATION", "us")
+    opts = ClientOptions(api_endpoint=f"{location}-documentai.googleapis.com")
+    return documentai.DocumentProcessorServiceClient(client_options=opts)
+
+
+def _get_processor_name():
+    project_id = os.getenv("GCP_PROJECT_ID")
+    location = os.getenv("GCP_LOCATION", "us")
+    processor_id = os.getenv("GCP_PROCESSOR_ID")
+    client = _get_docai_client()
+    return client.processor_path(project_id, location, processor_id)
+
+
+def _split_pdf(pdf_bytes: bytes, chunk_size: int = DOCAI_PAGE_LIMIT) -> list[bytes]:
+    """Split PDF into chunks of chunk_size pages."""
+    import fitz  # PyMuPDF
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    total_pages = len(doc)
+
+    if total_pages <= chunk_size:
+        doc.close()
+        return [pdf_bytes]
+
+    chunks = []
+    for start in range(0, total_pages, chunk_size):
+        end = min(start + chunk_size, total_pages)
+        new_doc = fitz.open()
+        new_doc.insert_pdf(doc, from_page=start, to_page=end - 1)
+        chunk_bytes = new_doc.tobytes()
+        new_doc.close()
+        chunks.append(chunk_bytes)
+
+    doc.close()
+    return chunks
+
+
+def _process_chunk(chunk_bytes: bytes, client, processor_name) -> documentai.Document:
+    """Process a single PDF chunk through Document AI."""
+    raw_document = documentai.RawDocument(content=chunk_bytes, mime_type="application/pdf")
+    request = documentai.ProcessRequest(name=processor_name, raw_document=raw_document)
+    result = client.process_document(request=request)
+    return result.document
+
+
+def extract_with_document_ai(pdf_bytes: bytes) -> dict:
+    """Extract structured text, tables using Document AI OCR. Handles large PDFs by chunking."""
+    client = _get_docai_client()
+    processor_name = _get_processor_name()
+
+    chunks = _split_pdf(pdf_bytes)
+
+    full_text = ""
+    pages = []
+    page_offset = 0
+
+    for chunk_bytes in chunks:
+        document = _process_chunk(chunk_bytes, client, processor_name)
+        full_text += document.text
+
+        for page in document.pages:
+            page_text = ""
+            for paragraph in page.paragraphs:
+                para_text = _get_text(paragraph.layout, document)
+                page_text += para_text + "\n"
+
+            pages.append({
+                "page_number": page_offset + page.page_number,
+                "text": page_text.strip(),
+                "tables": _extract_tables(page, document),
+            })
+
+        page_offset += len(document.pages)
+
+    return {
+        "full_text": full_text,
+        "pages": pages,
+        "page_count": len(pages),
+    }
+
+
+def _get_text(layout, document) -> str:
+    """Extract text from a layout element using text anchors."""
+    text = ""
+    for segment in layout.text_anchor.text_segments:
+        start = int(segment.start_index) if segment.start_index else 0
+        end = int(segment.end_index)
+        text += document.text[start:end]
+    return text.strip()
+
+
+def _extract_tables(page, document) -> list[dict]:
+    """Extract tables from a page."""
+    tables = []
+    for table in page.tables:
+        header_rows = []
+        for row in table.header_rows:
+            cells = [_get_text(cell.layout, document) for cell in row.cells]
+            header_rows.append(cells)
+
+        body_rows = []
+        for row in table.body_rows:
+            cells = [_get_text(cell.layout, document) for cell in row.cells]
+            body_rows.append(cells)
+
+        tables.append({"headers": header_rows, "rows": body_rows})
+    return tables
+
+
+def query_with_gemini(pdf_bytes: bytes, prompt: str) -> str:
+    """Send PDF directly to Gemini for AI judgment/analysis."""
+    configure_gemini()
+    model = genai.GenerativeModel("gemini-2.5-flash")
+
+    response = model.generate_content(
+        [
+            {"mime_type": "application/pdf", "data": pdf_bytes},
+            prompt,
+        ]
+    )
+    return response.text
