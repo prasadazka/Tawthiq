@@ -1,25 +1,24 @@
-import io
 import os
-import google.generativeai as genai
 from google.cloud import documentai
 from google.api_core.client_options import ClientOptions
 from dotenv import load_dotenv
+import vertexai
+from vertexai.generative_models import GenerativeModel, Part
 
 load_dotenv()
 
-_gemini_configured = False
-DOCAI_PAGE_LIMIT = 15  # Process in chunks of 15 pages
+_vertex_initialized = False
+DOCAI_PAGE_LIMIT = 15
 
 
-def configure_gemini():
-    global _gemini_configured
-    if _gemini_configured:
+def _init_vertex():
+    global _vertex_initialized
+    if _vertex_initialized:
         return
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY not set in environment")
-    genai.configure(api_key=api_key)
-    _gemini_configured = True
+    project_id = os.getenv("GCP_PROJECT_ID")
+    location = os.getenv("VERTEX_LOCATION", "us-central1")
+    vertexai.init(project=project_id, location=location)
+    _vertex_initialized = True
 
 
 def _get_docai_client():
@@ -133,14 +132,10 @@ def _extract_tables(page, document) -> list[dict]:
 
 
 def query_with_gemini(pdf_bytes: bytes, prompt: str) -> str:
-    """Send PDF directly to Gemini for AI judgment/analysis."""
-    configure_gemini()
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    """Send PDF directly to Gemini via Vertex AI for analysis."""
+    _init_vertex()
+    model = GenerativeModel("gemini-2.5-flash")
 
-    response = model.generate_content(
-        [
-            {"mime_type": "application/pdf", "data": pdf_bytes},
-            prompt,
-        ]
-    )
+    pdf_part = Part.from_data(data=pdf_bytes, mime_type="application/pdf")
+    response = model.generate_content([pdf_part, prompt])
     return response.text

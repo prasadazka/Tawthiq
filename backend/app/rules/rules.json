@@ -1,0 +1,308 @@
+[
+  {
+    "id": "R01",
+    "name": "Two Audit Firms Required",
+    "name_ar": "شركتا تدقيق مطلوبتان",
+    "description": "Banking & Insurance sectors must have two audit firms with signatures and stamps from both.",
+    "category": "auditor",
+    "sector": "banking_insurance",
+    "severity": "error",
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "Count the distinct audit/accounting firms that signed this financial statement. List each firm name. Are there exactly TWO firms with visible signatures or stamps?"
+  },
+  {
+    "id": "R02",
+    "name": "Initial Notes Verification",
+    "name_ar": "التحقق من الملاحظات الأولية",
+    "description": "CR number, company name, and company activity in initial notes must match the PDF.",
+    "category": "content",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "field_extraction",
+    "keywords": [
+      "CR",
+      "سجل تجاري",
+      "commercial registration",
+      "company name",
+      "activity"
+    ],
+    "ai_prompt": null
+  },
+  {
+    "id": "R03",
+    "name": "Auditor's Opinion Present",
+    "name_ar": "وجود رأي المدقق",
+    "description": "The PDF must contain the Auditor's Opinion section.",
+    "category": "auditor",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "presence_check",
+    "keywords": [
+      "auditor's opinion",
+      "auditor opinion",
+      "رأي المراجع",
+      "رأي مراجع الحسابات",
+      "independent auditor",
+      "رأي المراجعين",
+      "تقرير المراجع المستقل",
+      "تقرير مراجع الحسابات",
+      "independent auditors"
+    ],
+    "ai_prompt": "Does this PDF contain an Independent Auditor's Opinion / Report section (in English or Arabic)? Look for section headings like 'Auditor Opinion', 'رأي المراجع', 'تقرير المراجع المستقل'. State the exact heading found."
+  },
+  {
+    "id": "R04",
+    "name": "Basis of Opinion Present",
+    "name_ar": "وجود أساس الرأي",
+    "description": "The PDF must contain the Basis of Opinion section.",
+    "category": "auditor",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "presence_check",
+    "keywords": [
+      "basis of opinion",
+      "basis for opinion",
+      "أساس الرأي"
+    ],
+    "ai_prompt": null
+  },
+  {
+    "id": "R05",
+    "name": "Management Responsibilities Present",
+    "name_ar": "وجود مسؤوليات الإدارة",
+    "description": "The PDF must contain the Management Responsibilities section.",
+    "category": "auditor",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "presence_check",
+    "keywords": [
+      "management responsibilities",
+      "responsibilities of management",
+      "مسؤوليات الإدارة"
+    ],
+    "ai_prompt": null
+  },
+  {
+    "id": "R06",
+    "name": "Auditor's Responsibilities Present",
+    "name_ar": "وجود مسؤوليات المدقق",
+    "description": "The PDF must contain the Auditor's Responsibilities section.",
+    "category": "auditor",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "presence_check",
+    "keywords": [
+      "auditor's responsibilities",
+      "responsibilities of the auditor",
+      "مسؤوليات المراجع",
+      "مسؤوليات مراجع الحسابات"
+    ],
+    "ai_prompt": null
+  },
+  {
+    "id": "R07",
+    "name": "No Handwritten Content",
+    "name_ar": "عدم وجود محتوى مكتوب بخط اليد",
+    "description": "No handwritten content allowed except for signatures.",
+    "category": "format",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "Visually inspect every page of this PDF. Is there ANY handwritten text, annotations, or markings other than signatures/stamps? Handwritten numbers, corrections, or notes count as handwriting."
+  },
+  {
+    "id": "R08",
+    "name": "Mandatory Audit Fields Extraction",
+    "name_ar": "استخراج حقول التدقيق الإلزامية",
+    "description": "Partner name, audit firm name, and signing date must be extractable from the PDF.",
+    "category": "auditor",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "field_extraction",
+    "keywords": [
+      "partner",
+      "audit firm",
+      "signing date",
+      "date of report",
+      "شريك",
+      "تاريخ التوقيع"
+    ],
+    "ai_prompt": "Extract the following from this financial statement: 1) Name of the partner signing the report, 2) Name of the audit firm, 3) Date of signing the auditor report. Return each field or 'NOT FOUND' if missing."
+  },
+  {
+    "id": "R09",
+    "name": "Signature Date and License Number",
+    "name_ar": "تاريخ التوقيع ورقم الترخيص",
+    "description": "Signature date must be present. License number of auditing firm checked if mentioned.",
+    "category": "auditor",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "field_extraction",
+    "keywords": [
+      "signature date",
+      "license number",
+      "رقم الترخيص",
+      "تاريخ التوقيع"
+    ],
+    "ai_prompt": "Find: 1) The date the auditor signed the report. 2) The license/registration number of the auditing firm (if mentioned). Return each value or 'NOT FOUND'."
+  },
+  {
+    "id": "R10",
+    "name": "Filing Period Must Be Annual",
+    "name_ar": "فترة الإيداع سنوية فقط",
+    "description": "The filing period must be Annual. Quarterly statements are rejected.",
+    "category": "format",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "pattern_match",
+    "keywords": [
+      "annual",
+      "year ended",
+      "سنوي",
+      "السنة المنتهية",
+      "twelve months",
+      "12 months"
+    ],
+    "ai_prompt": null
+  },
+  {
+    "id": "R11",
+    "name": "Date Consistency Across Pages",
+    "name_ar": "تناسق التاريخ عبر الصفحات",
+    "description": "Dates on every page must match fiscal year and previous year periods.",
+    "category": "financial",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "Check all fiscal year-end dates and comparative period dates across every financial statement page (balance sheet, income statement, cash flow, equity). Are the reporting period dates (e.g., 31 Dec 2025) and comparative dates (e.g., 31 Dec 2024) consistent across ALL statements? List any date mismatches found."
+  },
+  {
+    "id": "R12",
+    "name": "Ministry of Commerce Registration",
+    "name_ar": "التسجيل في وزارة التجارة",
+    "description": "The company must be registered with the Ministry of Commerce.",
+    "category": "content",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "presence_check",
+    "keywords": [
+      "ministry of commerce",
+      "وزارة التجارة",
+      "commercial registration",
+      "سجل تجاري",
+      "CR number",
+      "CR no"
+    ],
+    "ai_prompt": null
+  },
+  {
+    "id": "R13",
+    "name": "Report Type Consistency",
+    "name_ar": "تناسق نوع التقرير",
+    "description": "Report type (company level/standalone vs consolidated) must match between PDF and initial form.",
+    "category": "content",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "field_extraction",
+    "keywords": [
+      "consolidated",
+      "company level",
+      "standalone",
+      "موحدة",
+      "مستقلة"
+    ],
+    "ai_prompt": "What type of financial report is this? Is it 'consolidated' or 'company level' (standalone)? Look at the title and headers of the financial statements."
+  },
+  {
+    "id": "R14",
+    "name": "Currency Must Be SAR",
+    "name_ar": "العملة يجب أن تكون ريال سعودي",
+    "description": "Currency in financial statements must be exclusively SAR (Saudi Riyal).",
+    "category": "financial",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "pattern_match",
+    "keywords": [
+      "SAR",
+      "Saudi Riyal",
+      "ريال سعودي",
+      "ريال"
+    ],
+    "ai_prompt": null
+  },
+  {
+    "id": "R15",
+    "name": "Reporting Scale Validation",
+    "name_ar": "التحقق من مقياس التقرير",
+    "description": "Financial reporting scale (thousands/millions/actuals) must match between PDF and initial form.",
+    "category": "financial",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "field_extraction",
+    "keywords": [
+      "thousands",
+      "millions",
+      "آلاف",
+      "ملايين",
+      "000",
+      "000,000"
+    ],
+    "ai_prompt": "What is the reporting unit/scale of the financial statements? Look for mentions of 'thousands', 'millions', zeros next to SAR, or 'in SAR' (which means actuals). Return: THOUSANDS, MILLIONS, or ACTUALS."
+  },
+  {
+    "id": "R16",
+    "name": "Equity and Cash Flow Date Matching",
+    "name_ar": "مطابقة تاريخ حقوق الملكية والتدفقات النقدية",
+    "description": "For Banking/Insurance: Shareholder's Equity and Cash Flow dates must match the end year date in the initial form.",
+    "category": "sector_specific",
+    "sector": "banking_insurance",
+    "severity": "error",
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "Find the dates mentioned in: 1) The Statement of Changes in Shareholders' Equity, 2) The Statement of Cash Flows. What are the period end dates in each? Do they match?"
+  },
+  {
+    "id": "R17",
+    "name": "Notes Reference Validation",
+    "name_ar": "التحقق من مراجع الملاحظات",
+    "description": "If note numbers are mentioned in the PDF, they must be correct with corresponding page numbers.",
+    "category": "content",
+    "sector": "all",
+    "severity": "warning",
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "Check if the financial statements reference numbered notes. If note numbers are mentioned, verify they appear to be sequential and properly referenced. Are there any obvious gaps or errors in note numbering?"
+  },
+  {
+    "id": "R18",
+    "name": "NPO Financial Activity Matching",
+    "name_ar": "مطابقة النشاط المالي للجمعيات",
+    "description": "NPO sector: Financial activity in PDF must match the initial form. Verified from statement title and license number.",
+    "category": "sector_specific",
+    "sector": "npo",
+    "severity": "error",
+    "validation_type": "field_extraction",
+    "keywords": [
+      "financial activity",
+      "نشاط مالي",
+      "license number",
+      "رقم الترخيص"
+    ],
+    "ai_prompt": "For this NPO financial statement: 1) What financial activity is described? 2) What is the license number? Extract from the statement title and body."
+  },
+  {
+    "id": "R19",
+    "name": "Initial Form Entries Validation",
+    "name_ar": "التحقق من إدخالات النموذج الأولي",
+    "description": "All fields entered in the initial form serve as validation criteria for document conformity.",
+    "category": "content",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "conditional",
+    "keywords": [],
+    "ai_prompt": null
+  }
+]

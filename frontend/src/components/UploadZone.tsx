@@ -1,0 +1,93 @@
+import { useCallback, useState, useRef } from "react";
+
+interface Props {
+  onFileSelected: (file: File) => void;
+  disabled?: boolean;
+}
+
+export default function UploadZone({ onFileSelected, disabled }: Props) {
+  const [dragOver, setDragOver] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = useCallback(
+    (file: File) => {
+      setError(null);
+      if (file.type !== "application/pdf") {
+        setError("Only PDF files are allowed");
+        return;
+      }
+      if (file.size > 50 * 1024 * 1024) {
+        setError("File size must be under 50 MB");
+        return;
+      }
+      onFileSelected(file);
+    },
+    [onFileSelected]
+  );
+
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragOver(false);
+      if (disabled) return;
+      const file = e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    },
+    [handleFile, disabled]
+  );
+
+  const onDragOver = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      if (!disabled) setDragOver(true);
+    },
+    [disabled]
+  );
+
+  const onDragLeave = useCallback(() => setDragOver(false), []);
+
+  const onClick = useCallback(() => {
+    if (!disabled) inputRef.current?.click();
+  }, [disabled]);
+
+  const onInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) handleFile(file);
+      e.target.value = "";
+    },
+    [handleFile]
+  );
+
+  return (
+    <div
+      className={`upload-zone ${dragOver ? "drag-over" : ""} ${disabled ? "disabled" : ""}`}
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onClick={onClick}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/pdf"
+        onChange={onInputChange}
+        hidden
+      />
+      <div className="upload-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="12" y1="18" x2="12" y2="12" />
+          <polyline points="9 15 12 12 15 15" />
+        </svg>
+      </div>
+      <p className="upload-text">
+        {disabled ? "Validating..." : "Drag & drop PDF here or click to browse"}
+      </p>
+      <p className="upload-hint">PDF only, max 50 MB</p>
+      {error && <p className="upload-error">{error}</p>}
+    </div>
+  );
+}
