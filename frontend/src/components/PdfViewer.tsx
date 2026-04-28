@@ -5,10 +5,7 @@ import "react-pdf/dist/Page/TextLayer.css";
 import HighlightOverlay from "./HighlightOverlay";
 import type { BoundingBox, RuleLocation } from "../api";
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url
-).toString();
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface Props {
   url: string;
@@ -39,7 +36,7 @@ export default function PdfViewer({
     if (!el) return;
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setContainerWidth(Math.min(entry.contentRect.width - 48, 900));
+        setContainerWidth(entry.contentRect.width - 48);
       }
     });
     observer.observe(el);
@@ -159,10 +156,11 @@ export default function PdfViewer({
           file={url}
           onLoadSuccess={({ numPages: n }) => {
             onNumPages(n);
-            // Initialize visible pages
             setVisiblePages(new Set([1, 2, 3]));
           }}
+          onLoadError={(error) => console.error("PDF load error:", error)}
           loading={<div className="pdf-loading">Loading PDF...</div>}
+          error={<div className="pdf-loading">Failed to load PDF. Please try again.</div>}
         >
           {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
             <div
