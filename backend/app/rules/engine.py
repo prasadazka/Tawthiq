@@ -1,5 +1,5 @@
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from app.rules.registry import Rule, ValidationType
@@ -13,17 +13,38 @@ class RuleResult:
     status: str  # pass, fail, skip, error
     details: str
     severity: str
+    locations: list[dict] = field(default_factory=list)
+
+
+def _find_keyword_locations(pages: list[dict], keywords: list[str]) -> list[dict]:
+    """Find which pages/paragraphs contain matched keywords. Returns location data with bounding boxes."""
+    locations = []
+    for page in pages:
+        page_bboxes = []
+        for para in page.get("paragraphs", []):
+            para_lower = para["text"].lower()
+            if any(kw.lower() in para_lower for kw in keywords):
+                if para["bounding_box"]["vertices"]:
+                    page_bboxes.append(para["bounding_box"])
+        if page_bboxes:
+            locations.append({
+                "page": page["page_number"],
+                "bounding_boxes": page_bboxes,
+            })
+    return locations
 
 
 def _check_with_docai(doc_data: dict, rule: Rule) -> RuleResult:
     """Check rule against Document AI extracted text (deterministic keyword search)."""
     text = doc_data["full_text"].lower()
     found = [kw for kw in rule.keywords if kw.lower() in text]
+    locations = _find_keyword_locations(doc_data.get("pages", []), found) if found else []
     if found:
         return RuleResult(
             rule_id=rule.id, rule_name=rule.name,
             status="pass", details=f"Found in document: {', '.join(found)}",
             severity=rule.severity.value,
+            locations=locations,
         )
     return RuleResult(
         rule_id=rule.id, rule_name=rule.name,
@@ -42,7 +63,7 @@ DESCRIPTION: {rule.description}
 TASK: {rule.ai_prompt}
 
 IMPORTANT: Respond in this exact JSON format:
-{{"result": "PASS" or "FAIL", "evidence": "what you found", "details": "explanation"}}
+{{"result": "PASS" or "FAIL", "evidence": "what you found", "details": "explanation", "pages": [list of 1-indexed page numbers where evidence was found, e.g. [1, 3, 5]]}}
 
 Only return the JSON, nothing else."""
 
@@ -59,10 +80,19 @@ Only return the JSON, nothing else."""
         data = json.loads(cleaned)
         status = "pass" if data.get("result", "").upper() == "PASS" else "fail"
         details = f"{data.get('evidence', '')} | {data.get('details', '')}"
+
+        # Extract page locations from Gemini response
+        gemini_pages = data.get("pages", [])
+        locations = [
+            {"page": p, "bounding_boxes": []}
+            for p in gemini_pages if isinstance(p, int)
+        ]
+
         return RuleResult(
             rule_id=rule.id, rule_name=rule.name,
             status=status, details=details.strip(" |"),
             severity=rule.severity.value,
+            locations=locations,
         )
     except json.JSONDecodeError:
         # Fallback: parse raw text
@@ -152,6 +182,7 @@ def run_rules(
             "status": r.status,
             "details": r.details,
             "severity": r.severity,
+            "locations": r.locations,
         }
         for r in results
     ]

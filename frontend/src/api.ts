@@ -2,12 +2,22 @@ const API_BASE = import.meta.env.PROD
   ? "https://tawthiq-backend-273154047321.us-central1.run.app"
   : "";
 
+export interface BoundingBox {
+  vertices: Array<{ x: number; y: number }>;
+}
+
+export interface RuleLocation {
+  page: number;
+  bounding_boxes: BoundingBox[];
+}
+
 export interface RuleResult {
   rule_id: string;
   rule_name: string;
   status: "pass" | "fail" | "skip" | "error";
   details: string;
   severity: string;
+  locations: RuleLocation[];
 }
 
 export interface ValidationResponse {

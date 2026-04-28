@@ -68,7 +68,7 @@ def _process_chunk(chunk_bytes: bytes, client, processor_name) -> documentai.Doc
 
 
 def extract_with_document_ai(pdf_bytes: bytes) -> dict:
-    """Extract structured text, tables using Document AI OCR. Handles large PDFs by chunking."""
+    """Extract structured text, tables, and paragraph bounding boxes using Document AI OCR."""
     client = _get_docai_client()
     processor_name = _get_processor_name()
 
@@ -84,14 +84,17 @@ def extract_with_document_ai(pdf_bytes: bytes) -> dict:
 
         for page in document.pages:
             page_text = ""
+            paragraphs = []
             for paragraph in page.paragraphs:
                 para_text = _get_text(paragraph.layout, document)
                 page_text += para_text + "\n"
+                paragraphs.append(_extract_paragraph_with_bbox(paragraph, document))
 
             pages.append({
                 "page_number": page_offset + page.page_number,
                 "text": page_text.strip(),
                 "tables": _extract_tables(page, document),
+                "paragraphs": paragraphs,
             })
 
         page_offset += len(document.pages)
@@ -101,6 +104,16 @@ def extract_with_document_ai(pdf_bytes: bytes) -> dict:
         "pages": pages,
         "page_count": len(pages),
     }
+
+
+def _extract_paragraph_with_bbox(paragraph, document) -> dict:
+    """Extract paragraph text and its bounding box coordinates."""
+    text = _get_text(paragraph.layout, document)
+    vertices = []
+    bp = paragraph.layout.bounding_poly
+    if bp and bp.normalized_vertices:
+        vertices = [{"x": float(v.x), "y": float(v.y)} for v in bp.normalized_vertices]
+    return {"text": text, "bounding_box": {"vertices": vertices}}
 
 
 def _get_text(layout, document) -> str:
