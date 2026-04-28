@@ -16,8 +16,8 @@ class RuleResult:
     locations: list[dict] = field(default_factory=list)
 
 
-def _find_keyword_locations(pages: list[dict], keywords: list[str]) -> list[dict]:
-    """Find which pages/paragraphs contain matched keywords. Returns location data with bounding boxes."""
+def _find_keyword_locations(pages: list[dict], keywords: list[str], max_pages: int = 5) -> list[dict]:
+    """Find which pages/paragraphs contain matched keywords. Returns up to max_pages locations."""
     locations = []
     for page in pages:
         page_bboxes = []
@@ -31,6 +31,8 @@ def _find_keyword_locations(pages: list[dict], keywords: list[str]) -> list[dict
                 "page": page["page_number"],
                 "bounding_boxes": page_bboxes,
             })
+            if len(locations) >= max_pages:
+                break
     return locations
 
 

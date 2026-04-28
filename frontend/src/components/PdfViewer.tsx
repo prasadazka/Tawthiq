@@ -29,6 +29,7 @@ export default function PdfViewer({
   const [containerWidth, setContainerWidth] = useState(700);
   const [visiblePages, setVisiblePages] = useState<Set<number>>(new Set([1, 2, 3]));
   const scrollingToRef = useRef(false);
+  const prevPageRef = useRef(currentPage);
 
   // Observe container width for responsive page rendering
   useEffect(() => {
@@ -99,6 +100,23 @@ export default function PdfViewer({
     },
     []
   );
+
+  // Scroll to page when currentPage changes from parent (rule click)
+  useEffect(() => {
+    if (currentPage !== prevPageRef.current && numPages > 0) {
+      // Ensure the target page and its neighbors are visible (rendered)
+      setVisiblePages((prev) => {
+        const next = new Set(prev);
+        next.add(currentPage);
+        if (currentPage > 1) next.add(currentPage - 1);
+        if (currentPage < numPages) next.add(currentPage + 1);
+        return next;
+      });
+      // Small delay to let the page render before scrolling
+      setTimeout(() => scrollToPage(currentPage), 100);
+      prevPageRef.current = currentPage;
+    }
+  }, [currentPage, numPages, scrollToPage]);
 
   // Get highlights for a specific page
   const getHighlightsForPage = (pageNum: number): BoundingBox[] => {
