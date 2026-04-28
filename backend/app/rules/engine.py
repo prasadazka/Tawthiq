@@ -1,15 +1,20 @@
 import json
+import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Optional
 
 from app.rules.registry import Rule, ValidationType
 from app.services.extractor import query_with_gemini
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class RuleResult:
     rule_id: str
     rule_name: str
+    description: str
     status: str  # pass, fail, skip, error
     details: str
     severity: str
@@ -43,13 +48,13 @@ def _check_with_docai(doc_data: dict, rule: Rule) -> RuleResult:
     locations = _find_keyword_locations(doc_data.get("pages", []), found) if found else []
     if found:
         return RuleResult(
-            rule_id=rule.id, rule_name=rule.name,
+            rule_id=rule.id, rule_name=rule.name, description=rule.description,
             status="pass", details=f"Found in document: {', '.join(found)}",
             severity=rule.severity.value,
             locations=locations,
         )
     return RuleResult(
-        rule_id=rule.id, rule_name=rule.name,
+        rule_id=rule.id, rule_name=rule.name, description=rule.description,
         status="fail", details=f"Not found in OCR text. Searched: {rule.keywords}",
         severity=rule.severity.value,
     )
@@ -91,7 +96,7 @@ Only return the JSON, nothing else."""
         ]
 
         return RuleResult(
-            rule_id=rule.id, rule_name=rule.name,
+            rule_id=rule.id, rule_name=rule.name, description=rule.description,
             status=status, details=details.strip(" |"),
             severity=rule.severity.value,
             locations=locations,
@@ -101,14 +106,14 @@ Only return the JSON, nothing else."""
         response_lower = response.lower()
         has_pass = '"pass"' in response_lower or "'pass'" in response_lower
         return RuleResult(
-            rule_id=rule.id, rule_name=rule.name,
+            rule_id=rule.id, rule_name=rule.name, description=rule.description,
             status="pass" if has_pass else "fail",
             details=response.strip()[:500],
             severity=rule.severity.value,
         )
     except Exception as e:
         return RuleResult(
-            rule_id=rule.id, rule_name=rule.name,
+            rule_id=rule.id, rule_name=rule.name, description=rule.description,
             status="error", details=f"AI validation failed: {str(e)}",
             severity=rule.severity.value,
         )
@@ -135,56 +140,101 @@ def run_rules(
     from app.rules.registry import get_rules
 
     applicable_rules = get_rules(sector)
-    results: list[RuleResult] = []
+
+    # Phase 1: Run fast DocAI-based rules synchronously and collect Gemini tasks
+    results_map: dict[str, RuleResult] = {}
+    gemini_tasks: list[tuple[str, Rule]] = []  # (rule_id, rule)
 
     for rule in applicable_rules:
         if rule.id == "R19":
-            results.append(RuleResult(
-                rule_id=rule.id, rule_name=rule.name,
+            results_map[rule.id] = RuleResult(
+                rule_id=rule.id, rule_name=rule.name, description=rule.description,
                 status="skip", details="Meta-rule: validated through other individual rules",
                 severity=rule.severity.value,
-            ))
+            )
             continue
 
         if rule.validation_type == ValidationType.PRESENCE_CHECK:
-            # Document AI text search first, Gemini fallback
-            result = _check_hybrid(pdf_bytes, doc_data, rule)
+            # Try DocAI first; if pass, done. If fail, need Gemini fallback.
+            if rule.keywords:
+                docai_result = _check_with_docai(doc_data, rule)
+                if docai_result.status == "pass":
+                    results_map[rule.id] = docai_result
+                    continue
+            # Need Gemini fallback
+            if rule.ai_prompt:
+                gemini_tasks.append(("gemini", rule))
+            else:
+                results_map[rule.id] = _check_with_docai(doc_data, rule)
+            continue
 
         elif rule.validation_type == ValidationType.PATTERN_MATCH:
-            # Document AI text for deterministic pattern matching
-            result = _check_with_docai(doc_data, rule)
+            results_map[rule.id] = _check_with_docai(doc_data, rule)
 
         elif rule.validation_type == ValidationType.AI_JUDGMENT:
-            # Direct to Gemini — needs visual/contextual analysis
-            result = _check_with_gemini(pdf_bytes, rule)
+            gemini_tasks.append(("gemini", rule))
 
         elif rule.validation_type == ValidationType.FIELD_EXTRACTION:
-            # Hybrid: try Document AI first, Gemini for complex extraction
-            result = _check_hybrid(pdf_bytes, doc_data, rule)
+            # Hybrid: try DocAI first
+            if rule.keywords:
+                docai_result = _check_with_docai(doc_data, rule)
+                if docai_result.status == "pass":
+                    results_map[rule.id] = docai_result
+                    continue
+            if rule.ai_prompt:
+                gemini_tasks.append(("gemini", rule))
+            else:
+                results_map[rule.id] = _check_with_docai(doc_data, rule)
 
         elif rule.validation_type == ValidationType.CONDITIONAL:
-            result = RuleResult(
-                rule_id=rule.id, rule_name=rule.name,
+            results_map[rule.id] = RuleResult(
+                rule_id=rule.id, rule_name=rule.name, description=rule.description,
                 status="skip", details="Requires initial form data for comparison",
                 severity=rule.severity.value,
             )
         else:
-            result = RuleResult(
-                rule_id=rule.id, rule_name=rule.name,
+            results_map[rule.id] = RuleResult(
+                rule_id=rule.id, rule_name=rule.name, description=rule.description,
                 status="skip", details="Validation type not implemented",
                 severity=rule.severity.value,
             )
 
-        results.append(result)
+    # Phase 2: Run all Gemini calls in parallel
+    if gemini_tasks:
+        logger.info(f"Running {len(gemini_tasks)} Gemini rules in parallel: "
+                     f"{[r.id for _, r in gemini_tasks]}")
+        with ThreadPoolExecutor(max_workers=len(gemini_tasks)) as executor:
+            futures = {
+                executor.submit(_check_with_gemini, pdf_bytes, rule): rule
+                for _, rule in gemini_tasks
+            }
+            for future in as_completed(futures):
+                rule = futures[future]
+                try:
+                    result = future.result()
+                    results_map[rule.id] = result
+                except Exception as e:
+                    results_map[rule.id] = RuleResult(
+                        rule_id=rule.id, rule_name=rule.name, description=rule.description,
+                        status="error", details=f"AI validation failed: {str(e)}",
+                        severity=rule.severity.value,
+                    )
+
+    # Return results in original rule order
+    ordered_results = []
+    for rule in applicable_rules:
+        if rule.id in results_map:
+            ordered_results.append(results_map[rule.id])
 
     return [
         {
             "rule_id": r.rule_id,
             "rule_name": r.rule_name,
+            "description": r.description,
             "status": r.status,
             "details": r.details,
             "severity": r.severity,
             "locations": r.locations,
         }
-        for r in results
+        for r in ordered_results
     ]

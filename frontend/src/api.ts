@@ -14,6 +14,7 @@ export interface RuleLocation {
 export interface RuleResult {
   rule_id: string;
   rule_name: string;
+  description: string;
   status: "pass" | "fail" | "skip" | "error";
   details: string;
   severity: string;

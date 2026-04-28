@@ -120,6 +120,13 @@ export default function RulesPanel({
                 <div className="panel-rule-top">
                   <span className="rule-id">{r.rule_id}</span>
                   <span className="panel-rule-name">{r.rule_name}</span>
+                  <span
+                    className="rule-info-btn"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    i
+                    <span className="rule-info-tooltip">{r.description}</span>
+                  </span>
                   <span className={`rule-badge badge-${r.status}`}>
                     {r.status}
                   </span>

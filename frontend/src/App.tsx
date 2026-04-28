@@ -46,7 +46,7 @@ function App() {
   };
 
   return (
-    <div className="app">
+    <div className={`app ${state === "done" ? "app-viewer-mode" : ""}`}>
       {/* Nav */}
       <nav className="nav">
         <div className="nav-brand">
@@ -54,7 +54,7 @@ function App() {
             <path d="M9 12l2 2 4-4" />
             <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />
           </svg>
-          <span>Tawteeq</span>
+          <span>Tawtheeq</span>
         </div>
         {state === "done" && (
           <button type="button" className="btn btn-outline btn-sm" onClick={handleReset}>
@@ -156,7 +156,7 @@ function App() {
           </main>
 
           <footer className="footer">
-            <p>Tawteeq &middot; Document Validation System</p>
+            <p>Tawtheeq &middot; Document Validation System</p>
           </footer>
         </>
       )}
