@@ -41,7 +41,7 @@ steps:
       - '--port=8080'
       - '--memory=1Gi'
       - '--timeout=300'
-      - '--set-env-vars=GCP_PROJECT_ID=tawthiq-494310,GCP_LOCATION=us,GCP_PROCESSOR_ID=30294d77ffc4f437,VERTEX_LOCATION=us-central1'
+      - '--set-env-vars=GCP_PROJECT_ID=tawthiq-494310,GCP_LOCATION=us,GCP_PROCESSOR_ID=30294d77ffc4f437,VERTEX_LOCATION=us-central1,GCS_BUCKET_NAME=tawthiq-docs'
 
   # Deploy frontend to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'

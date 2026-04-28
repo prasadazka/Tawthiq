@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, Form
 from typing import Optional
 
 from app.services.extractor import extract_with_document_ai
+from app.services.storage import upload_pdf
 from app.rules.engine import run_rules
 
 router = APIRouter(prefix="/api", tags=["validate"])
@@ -18,7 +19,10 @@ async def validate_document(
 ):
     pdf_bytes = await file.read()
 
-    # Step 1: Document AI structured extraction
+    # Step 1: Store PDF in GCS
+    gcs_path = upload_pdf(pdf_bytes, file.filename or "document.pdf")
+
+    # Step 2: Document AI structured extraction
     doc_data = extract_with_document_ai(pdf_bytes)
 
     metadata = {
@@ -28,7 +32,7 @@ async def validate_document(
         "reporting_scale": reporting_scale,
     }
 
-    # Step 2: Run rules — Document AI for data checks, Gemini for judgment
+    # Step 3: Run rules — Document AI for data checks, Gemini for judgment
     results = run_rules(pdf_bytes, doc_data, sector, metadata)
 
     passed = sum(1 for r in results if r["status"] == "pass")
@@ -38,6 +42,7 @@ async def validate_document(
 
     return {
         "filename": file.filename,
+        "gcs_path": gcs_path,
         "sector": sector,
         "extraction": {
             "method": "document_ai + gemini",
