@@ -5,67 +5,77 @@ interface Props {
   onReset: () => void;
 }
 
-const STATUS_ICON: Record<string, string> = {
-  pass: "\u2705",
-  fail: "\u274C",
-  skip: "\u23ED",
-  error: "\u26A0",
-};
-
 export default function ValidationResults({ data, onReset }: Props) {
   const { summary, results, filename, extraction } = data;
+  const passRate = summary.total > 0 ? Math.round((summary.passed / summary.total) * 100) : 0;
 
   return (
     <div className="results">
-      <div className="results-header">
-        <div className="results-file">
-          <span className="file-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
-          </span>
+      {/* Score overview */}
+      <div className="score-card">
+        <div className="score-left">
+          <div className={`score-ring ${passRate >= 80 ? "score-good" : passRate >= 50 ? "score-mid" : "score-bad"}`}>
+            <span className="score-num">{passRate}%</span>
+          </div>
           <div>
-            <strong>{filename}</strong>
-            <span className="file-meta">{extraction.page_count} pages</span>
+            <h2 className="score-title">Validation Complete</h2>
+            <p className="score-file">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              {filename}
+              <span className="score-pages">{extraction.page_count} pages</span>
+            </p>
           </div>
         </div>
-        <button className="btn-reset" onClick={onReset}>Validate Another</button>
+        <button type="button" className="btn btn-outline btn-sm" onClick={onReset}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          New
+        </button>
       </div>
 
-      <div className="summary-cards">
-        <div className="card card-pass">
-          <span className="card-num">{summary.passed}</span>
-          <span className="card-label">Passed</span>
+      {/* Stats */}
+      <div className="stats">
+        <div className="stat">
+          <span className="stat-dot dot-pass" />
+          <span className="stat-num">{summary.passed}</span>
+          <span className="stat-label">Passed</span>
         </div>
-        <div className="card card-fail">
-          <span className="card-num">{summary.failed}</span>
-          <span className="card-label">Failed</span>
+        <div className="stat">
+          <span className="stat-dot dot-fail" />
+          <span className="stat-num">{summary.failed}</span>
+          <span className="stat-label">Failed</span>
         </div>
-        <div className="card card-skip">
-          <span className="card-num">{summary.skipped}</span>
-          <span className="card-label">Skipped</span>
+        <div className="stat">
+          <span className="stat-dot dot-skip" />
+          <span className="stat-num">{summary.skipped}</span>
+          <span className="stat-label">Skipped</span>
         </div>
-        <div className="card card-error">
-          <span className="card-num">{summary.errors}</span>
-          <span className="card-label">Errors</span>
+        <div className="stat">
+          <span className="stat-dot dot-error" />
+          <span className="stat-num">{summary.errors}</span>
+          <span className="stat-label">Errors</span>
         </div>
       </div>
 
-      <div className="rules-list">
-        {results.map((r) => (
-          <div key={r.rule_id} className={`rule-row rule-${r.status}`}>
-            <span className="rule-status">{STATUS_ICON[r.status] || "?"}</span>
-            <div className="rule-info">
-              <div className="rule-title">
-                <span className="rule-id">{r.rule_id}</span>
-                {r.rule_name}
+      {/* Rule rows */}
+      <div className="rules-section">
+        <h3 className="rules-heading">Rule Details</h3>
+        <div className="rules-list">
+          {results.map((r) => (
+            <div key={r.rule_id} className={`rule-row rule-${r.status}`}>
+              <div className={`rule-indicator ind-${r.status}`} />
+              <div className="rule-body">
+                <div className="rule-top">
+                  <span className="rule-id">{r.rule_id}</span>
+                  <span className="rule-name">{r.rule_name}</span>
+                  <span className={`rule-badge badge-${r.status}`}>
+                    {r.status}
+                  </span>
+                </div>
+                <p className="rule-details">{r.details}</p>
               </div>
-              <p className="rule-details">{r.details}</p>
             </div>
-            <span className={`severity severity-${r.severity}`}>{r.severity}</span>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
