@@ -17,6 +17,9 @@
   border-bottom: 1px solid var(--border);
   background: var(--bg);
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
 
 .nav-brand {
@@ -430,6 +433,8 @@
   flex: 1;
   height: calc(100vh - 52px);
   overflow: hidden;
+  position: sticky;
+  top: 52px;
 }
 
 /* ── Sidebar ── */
@@ -441,6 +446,8 @@
   background: var(--bg);
   display: flex;
   flex-direction: column;
+  height: 100%;
+  position: relative;
 }
 
 /* ── PDF Area ── */
@@ -467,6 +474,10 @@
   padding: 20px 20px 16px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
 }
 
 .panel-score-row {
@@ -725,6 +736,9 @@
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .pdf-page-info {
