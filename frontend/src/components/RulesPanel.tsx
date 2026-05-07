@@ -9,6 +9,38 @@ interface Props {
   duration?: number;
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  pass: "Passed",
+  fail: "Failed",
+  skip: "Skipped",
+  error: "Error",
+  not_applicable: "Not Applicable",
+};
+
+function RuleDetails({ details, status, isSelected }: { details: string; status: string; isSelected: boolean }) {
+  if (!isSelected) {
+    return <p className="panel-rule-details">{details}</p>;
+  }
+
+  const parts = details.split(" | ");
+  const finding = parts[0]?.trim();
+  const evidence = parts.length > 1 ? parts.slice(1).join(" | ").trim() : null;
+
+  return (
+    <div className="panel-rule-details-expanded">
+      <div className={`details-status-label status-label-${status}`}>
+        {STATUS_LABELS[status] || status}
+      </div>
+      <div className="details-finding">{finding}</div>
+      {evidence && (
+        <div className="details-evidence">
+          <span className="details-evidence-label">Evidence:</span> {evidence}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function RulesPanel({
   data,
   selectedRule,
@@ -154,7 +186,7 @@ export default function RulesPanel({
                     {r.status === "not_applicable" ? "N/A" : r.status}
                   </span>
                 </div>
-                <p className="panel-rule-details">{r.details}</p>
+                <RuleDetails details={r.details} status={r.status} isSelected={isSelected} />
                 {hasLocations && (
                   <div className="panel-rule-pages">
                     <svg
