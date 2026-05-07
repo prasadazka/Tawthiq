@@ -1,8 +1,8 @@
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 python-multipart==0.0.9
-google-cloud-documentai==3.0.0
 google-cloud-storage==2.18.0
 google-cloud-aiplatform>=1.60.0
 python-dotenv==1.0.1
 PyMuPDF==1.25.5
+groq>=0.12.0

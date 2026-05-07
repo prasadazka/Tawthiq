@@ -7,9 +7,10 @@ interface Props {
   data: ValidationResponse;
   pdfFile: File;
   onReset: () => void;
+  duration?: number;
 }
 
-export default function ValidationViewer({ data, pdfFile, onReset }: Props) {
+export default function ValidationViewer({ data, pdfFile, onReset, duration }: Props) {
   const [selectedRule, setSelectedRule] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [numPages, setNumPages] = useState(0);
@@ -31,6 +32,12 @@ export default function ValidationViewer({ data, pdfFile, onReset }: Props) {
     }
   };
 
+  // When an individual page tag is clicked, select the rule and jump to that page
+  const handlePageClick = (ruleId: string, page: number) => {
+    setSelectedRule(ruleId);
+    setCurrentPage(page);
+  };
+
   // Get all locations for the selected rule
   const selectedLocations: RuleLocation[] = useMemo(() => {
     if (!selectedRule) return [];
@@ -47,7 +54,9 @@ export default function ValidationViewer({ data, pdfFile, onReset }: Props) {
           data={data}
           selectedRule={selectedRule}
           onRuleClick={handleRuleClick}
+          onPageClick={handlePageClick}
           onReset={onReset}
+          duration={duration}
         />
       </div>
       <div className="viewer-main">

@@ -4,19 +4,24 @@ interface Props {
   data: ValidationResponse;
   selectedRule: string | null;
   onRuleClick: (ruleId: string) => void;
+  onPageClick: (ruleId: string, page: number) => void;
   onReset: () => void;
+  duration?: number;
 }
 
 export default function RulesPanel({
   data,
   selectedRule,
   onRuleClick,
+  onPageClick,
   onReset,
+  duration,
 }: Props) {
   const { summary, results, filename, extraction } = data;
+  const applicableTotal = summary.total - (summary.not_applicable || 0);
   const passRate =
-    summary.total > 0
-      ? Math.round((summary.passed / summary.total) * 100)
+    applicableTotal > 0
+      ? Math.round((summary.passed / applicableTotal) * 100)
       : 0;
 
   return (
@@ -36,7 +41,20 @@ export default function RulesPanel({
             <span className="score-num">{passRate}%</span>
           </div>
           <div className="panel-file-info">
-            <h3 className="panel-title">Validation Complete</h3>
+            <h3 className="panel-title">
+              Validation Complete
+              {duration != null && (
+                <span className="panel-duration">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  {duration < 60
+                    ? `${duration.toFixed(1)}s`
+                    : `${(duration / 60).toFixed(1)} min`}
+                </span>
+              )}
+            </h3>
             <p className="panel-filename">
               <svg
                 width="12"
@@ -97,6 +115,11 @@ export default function RulesPanel({
             <span className="panel-stat-num">{summary.errors}</span>
             <span className="panel-stat-label">Error</span>
           </div>
+          <div className="panel-stat">
+            <span className="stat-dot dot-not_applicable" />
+            <span className="panel-stat-num">{summary.not_applicable}</span>
+            <span className="panel-stat-label">N/A</span>
+          </div>
         </div>
       </div>
 
@@ -128,7 +151,7 @@ export default function RulesPanel({
                     <span className="rule-info-tooltip">{r.description}</span>
                   </span>
                   <span className={`rule-badge badge-${r.status}`}>
-                    {r.status}
+                    {r.status === "not_applicable" ? "N/A" : r.status}
                   </span>
                 </div>
                 <p className="panel-rule-details">{r.details}</p>
@@ -145,7 +168,20 @@ export default function RulesPanel({
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                       <polyline points="14 2 14 8 20 8" />
                     </svg>
-                    {r.locations.map((l) => `p.${l.page}`).join(", ")}
+                    {r.locations.map((l, i) => (
+                      <span key={l.page}>
+                        <span
+                          className="page-tag"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onPageClick(r.rule_id, l.page);
+                          }}
+                        >
+                          p.{l.page}
+                        </span>
+                        {i < r.locations.length - 1 && ", "}
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>

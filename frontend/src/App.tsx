@@ -13,6 +13,8 @@ function App() {
   const [fileName, setFileName] = useState<string>("");
   const [fileSize, setFileSize] = useState<string>("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [duration, setDuration] = useState<number | undefined>(undefined);
+  const [sector, setSector] = useState<string>("all");
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -26,8 +28,10 @@ function App() {
     setFileSize(formatSize(file.size));
     setError(null);
 
+    const startTime = performance.now();
     try {
-      const data = await validateDocument(file);
+      const data = await validateDocument(file, sector);
+      setDuration((performance.now() - startTime) / 1000);
       setResult(data);
       setState("done");
     } catch (err) {
@@ -43,6 +47,7 @@ function App() {
     setFileName("");
     setFileSize("");
     setPdfFile(null);
+    setDuration(undefined);
   };
 
   return (
@@ -65,7 +70,7 @@ function App() {
 
       {/* Results — full-width viewer */}
       {state === "done" && result && pdfFile && (
-        <ValidationViewer data={result} pdfFile={pdfFile} onReset={handleReset} />
+        <ValidationViewer data={result} pdfFile={pdfFile} onReset={handleReset} duration={duration} />
       )}
 
       {/* Non-results states inside main container */}
@@ -82,6 +87,20 @@ function App() {
                     regulatory compliance rules automatically.
                   </p>
                 </div>
+                <div className="sector-selector">
+                  <label className="sector-label">Select Sector</label>
+                  <div className="sector-options">
+                    <button type="button" className={`sector-btn ${sector === "all" ? "sector-active" : ""}`} onClick={() => setSector("all")}>
+                      All Sectors
+                    </button>
+                    <button type="button" className={`sector-btn ${sector === "banking_insurance" ? "sector-active" : ""}`} onClick={() => setSector("banking_insurance")}>
+                      Banking &amp; Insurance
+                    </button>
+                    <button type="button" className={`sector-btn ${sector === "npo" ? "sector-active" : ""}`} onClick={() => setSector("npo")}>
+                      NPO
+                    </button>
+                  </div>
+                </div>
                 <UploadZone onFileSelected={handleFile} />
                 <div className="features">
                   <div className="feature">
@@ -95,7 +114,7 @@ function App() {
                     <div className="feature-icon">
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                     </div>
-                    <h3>19 Compliance Rules</h3>
+                    <h3>23 Compliance Rules</h3>
                     <p>Validates against mandatory filing requirements for Saudi financial statements</p>
                   </div>
                   <div className="feature">
@@ -136,7 +155,7 @@ function App() {
                   </div>
                   <div className="step step-pending">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/></svg>
-                    Validating against 19 rules
+                    Validating against 23 rules
                   </div>
                 </div>
               </div>

@@ -9,7 +9,7 @@
     "severity": "error",
     "validation_type": "ai_judgment",
     "keywords": [],
-    "ai_prompt": "Count the distinct audit/accounting firms that signed this financial statement. List each firm name. Are there exactly TWO firms with visible signatures or stamps?"
+    "ai_prompt": "You are validating a financial statement for the Banking/Insurance sector.\n\nRULE: Banking and Insurance companies in Saudi Arabia are required to have TWO separate audit firms jointly auditing their financial statements.\n\nTASK:\n1. Identify ALL distinct audit/accounting firms mentioned in the auditor's report section (not in the notes or body).\n2. For each firm found, state: firm name, whether a partner signature is present, whether a firm stamp/seal is visible.\n3. Determine if there are exactly TWO audit firms with signatures.\n\nIMPORTANT: Only count firms that appear in the auditor's report/opinion pages with signatures — not firms mentioned elsewhere in the document."
   },
   {
     "id": "R02",
@@ -19,202 +19,141 @@
     "category": "content",
     "sector": "all",
     "severity": "error",
-    "validation_type": "field_extraction",
-    "keywords": [
-      "CR",
-      "سجل تجاري",
-      "commercial registration",
-      "company name",
-      "activity"
-    ],
-    "ai_prompt": null
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are validating the initial notes/header section of a Saudi financial statement.\n\nTASK: Extract the following specific fields from the document:\n1. COMMERCIAL REGISTRATION (CR) NUMBER (السجل التجاري / رقم السجل التجاري): Find the actual CR number (numeric value). It is usually on the first few pages or in the company information section. Do NOT confuse with license numbers, unified numbers, or other identifiers.\n2. COMPANY NAME: Extract the full legal company name as stated in the document header or first page.\n3. COMPANY ACTIVITY/PURPOSE (النشاط / غرض الشركة): What is the company's stated business activity? Extract the actual activity description, not just the word 'activity'.\n\nFor each field, provide the extracted value or 'NOT FOUND'.\nResult is PASS if all three fields (CR number, company name, activity) are found and clearly stated.\nResult is FAIL if any field is missing."
   },
   {
     "id": "R03",
     "name": "Auditor's Opinion Present",
     "name_ar": "وجود رأي المدقق",
-    "description": "The PDF must contain the Auditor's Opinion section.",
+    "description": "The PDF must contain the Auditor's Opinion section with identifiable opinion type.",
     "category": "auditor",
     "sector": "all",
     "severity": "error",
-    "validation_type": "presence_check",
-    "keywords": [
-      "auditor's opinion",
-      "auditor opinion",
-      "رأي المراجع",
-      "رأي مراجع الحسابات",
-      "independent auditor",
-      "رأي المراجعين",
-      "تقرير المراجع المستقل",
-      "تقرير مراجع الحسابات",
-      "independent auditors"
-    ],
-    "ai_prompt": "Does this PDF contain an Independent Auditor's Opinion / Report section (in English or Arabic)? Look for section headings like 'Auditor Opinion', 'رأي المراجع', 'تقرير المراجع المستقل'. State the exact heading found."
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are validating the auditor's report in a Saudi financial statement.\n\nTASK:\n1. Locate the Independent Auditor's Report section (تقرير المراجع المستقل / تقرير مراجع الحسابات). State the exact page number(s) where it appears.\n2. Identify the OPINION TYPE. The auditor's opinion must be one of:\n   - Unqualified/Clean opinion (رأي نظيف / رأي غير متحفظ)\n   - Qualified opinion (رأي متحفظ)\n   - Adverse opinion (رأي معارض)\n   - Disclaimer of opinion (الامتناع عن إبداء الرأي)\n3. Quote the exact opinion sentence from the report.\n\nResult is PASS if the auditor's report section exists AND the opinion type is clearly identifiable.\nResult is FAIL if the section is missing or the opinion type cannot be determined."
   },
   {
     "id": "R04",
     "name": "Basis of Opinion Present",
     "name_ar": "وجود أساس الرأي",
-    "description": "The PDF must contain the Basis of Opinion section.",
+    "description": "The PDF must contain the Basis of Opinion section as a distinct heading in the auditor's report.",
     "category": "auditor",
     "sector": "all",
     "severity": "error",
-    "validation_type": "presence_check",
-    "keywords": [
-      "basis of opinion",
-      "basis for opinion",
-      "أساس الرأي"
-    ],
-    "ai_prompt": null
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are validating the auditor's report structure in a Saudi financial statement.\n\nTASK:\n1. Locate the 'Basis of Opinion' or 'Basis for Opinion' section (أساس الرأي) within the auditor's report.\n2. This must be a DISTINCT SECTION HEADING — not just a mention of the phrase within the opinion paragraph.\n3. Verify that the section contains substantive content about the basis for the auditor's conclusion (e.g., reference to auditing standards, ISA, independence).\n\nResult is PASS if a distinct 'Basis of Opinion' section heading exists with substantive content.\nResult is FAIL if the section heading is missing or only appears as inline text within another paragraph."
   },
   {
     "id": "R05",
     "name": "Management Responsibilities Present",
     "name_ar": "وجود مسؤوليات الإدارة",
-    "description": "The PDF must contain the Management Responsibilities section.",
+    "description": "The PDF must contain the Management Responsibilities section in the auditor's report.",
     "category": "auditor",
     "sector": "all",
     "severity": "error",
-    "validation_type": "presence_check",
-    "keywords": [
-      "management responsibilities",
-      "responsibilities of management",
-      "مسؤوليات الإدارة"
-    ],
-    "ai_prompt": null
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are validating the auditor's report structure in a Saudi financial statement.\n\nTASK:\n1. Locate the 'Responsibilities of Management' or 'Management's Responsibilities' section within the auditor's report. In Arabic, look for: مسؤوليات الإدارة / مسئوليات الإدارة / مسؤوليات إدارة الشركة (note: مسؤوليات and مسئوليات are both valid spellings).\n2. This must be a DISTINCT SECTION HEADING in the auditor's report — not just a mention in the body text.\n3. The section should describe management's responsibility for the financial statements.\n\nIMPORTANT: Arabic documents may use slightly different spellings (مسؤوليات vs مسئوليات — the difference is a single hamza character). Accept both variations.\n\nResult is PASS if the section heading exists (in any valid spelling variation).\nResult is FAIL if the section heading is completely missing."
   },
   {
     "id": "R06",
     "name": "Auditor's Responsibilities Present",
     "name_ar": "وجود مسؤوليات المدقق",
-    "description": "The PDF must contain the Auditor's Responsibilities section.",
+    "description": "The PDF must contain the Auditor's Responsibilities section in the auditor's report.",
     "category": "auditor",
     "sector": "all",
     "severity": "error",
-    "validation_type": "presence_check",
-    "keywords": [
-      "auditor's responsibilities",
-      "responsibilities of the auditor",
-      "مسؤوليات المراجع",
-      "مسؤوليات مراجع الحسابات"
-    ],
-    "ai_prompt": null
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are validating the auditor's report structure in a Saudi financial statement.\n\nTASK:\n1. Locate the 'Auditor's Responsibilities' or 'Responsibilities of the Auditor' section within the auditor's report. In Arabic, look for: مسؤوليات المراجع / مسئوليات المراجع / مسؤوليات مراجع الحسابات (note: مسؤوليات and مسئوليات are both valid spellings).\n2. This must be a DISTINCT SECTION HEADING in the auditor's report.\n3. The section should describe the auditor's responsibilities for the audit.\n\nIMPORTANT: Arabic documents may use slightly different spellings (مسؤوليات vs مسئوليات — the difference is a single hamza character). Accept both variations.\n\nResult is PASS if the section heading exists (in any valid spelling variation).\nResult is FAIL if the section heading is completely missing."
   },
   {
     "id": "R07",
     "name": "No Handwritten Content",
     "name_ar": "عدم وجود محتوى مكتوب بخط اليد",
-    "description": "No handwritten content allowed except for signatures.",
+    "description": "No handwritten content allowed except for signatures and stamps.",
     "category": "format",
     "sector": "all",
     "severity": "error",
     "validation_type": "ai_judgment",
     "keywords": [],
-    "ai_prompt": "Visually inspect every page of this PDF. Is there ANY handwritten text, annotations, or markings other than signatures/stamps? Handwritten numbers, corrections, or notes count as handwriting."
+    "ai_prompt": "You are validating a Saudi financial statement for handwritten content.\n\nTASK:\n1. Visually inspect every page of this PDF.\n2. Identify ANY handwritten text, annotations, corrections, or markings.\n3. EXCLUDE the following (these are allowed): signatures, stamps/seals, initials next to signatures.\n4. Report any handwritten numbers, corrections, margin notes, or annotations found.\n\nResult is PASS if no handwritten content is found other than signatures/stamps.\nResult is FAIL if handwritten text, corrections, annotations, or numbers are found."
   },
   {
     "id": "R08",
     "name": "Mandatory Audit Fields Extraction",
     "name_ar": "استخراج حقول التدقيق الإلزامية",
-    "description": "Partner name, audit firm name, and signing date must be extractable from the PDF.",
+    "description": "Partner name, audit firm name, and signing date must be extractable from the auditor's report.",
     "category": "auditor",
     "sector": "all",
     "severity": "error",
-    "validation_type": "field_extraction",
-    "keywords": [
-      "partner",
-      "audit firm",
-      "signing date",
-      "date of report",
-      "شريك",
-      "تاريخ التوقيع"
-    ],
-    "ai_prompt": "Extract the following from this financial statement: 1) Name of the partner signing the report, 2) Name of the audit firm, 3) Date of signing the auditor report. Return each field or 'NOT FOUND' if missing."
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are extracting mandatory audit fields from a Saudi financial statement.\n\nTASK: Look ONLY at the auditor's report pages (the pages containing the independent auditor's opinion, usually the first few pages). Extract:\n\n1. PARTNER NAME (اسم الشريك): The name of the individual partner who signed the audit report. This is the person's name, NOT the firm name. It usually appears near the signature at the end of the auditor's report. Do NOT extract names from 'related parties' notes or other sections.\n\n2. AUDIT FIRM NAME (اسم مكتب المراجعة): The name of the audit/accounting firm. This appears in the letterhead or near the signature block of the auditor's report.\n\n3. SIGNING DATE (تاريخ التوقيع): The date when the auditor's report was signed. This is usually at the bottom of the auditor's report, near the signature.\n\nIMPORTANT:\n- Only extract from the AUDITOR'S REPORT section, not from the body of financial statements.\n- The partner name is a PERSON's name — do not confuse with firm names, related party names, or board member names.\n- If there are two audit firms (joint audit), extract details for both.\n\nResult is PASS if all three fields are found.\nResult is FAIL if any field is NOT FOUND."
   },
   {
     "id": "R09",
     "name": "Signature Date and License Number",
     "name_ar": "تاريخ التوقيع ورقم الترخيص",
-    "description": "Signature date must be present. License number of auditing firm checked if mentioned.",
+    "description": "Signature date and audit firm license number must be present in the auditor's report pages.",
     "category": "auditor",
     "sector": "all",
     "severity": "error",
-    "validation_type": "field_extraction",
-    "keywords": [
-      "signature date",
-      "license number",
-      "رقم الترخيص",
-      "تاريخ التوقيع"
-    ],
-    "ai_prompt": "Find: 1) The date the auditor signed the report. 2) The license/registration number of the auditing firm (if mentioned). Return each value or 'NOT FOUND'."
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are validating the auditor's report section of a Saudi financial statement.\n\nTASK: Look ONLY at the auditor's report pages (the independent auditor's opinion section, typically the first 5-6 pages). Extract:\n\n1. SIGNATURE/REPORT DATE (تاريخ التقرير / تاريخ التوقيع): The date the auditor signed the report. State the exact date found.\n2. LICENSE NUMBER (رقم الترخيص): The SOCPA license number or registration number of the audit firm. This is the professional license, not the commercial registration.\n\nIMPORTANT:\n- ONLY look at the auditor's report pages — do NOT search the entire document.\n- Do NOT confuse the company's dates (fiscal year end, board approval date) with the auditor's signing date.\n- The license number is the auditor's SOCPA professional license, not the company's CR number.\n\nResult is PASS if the signature date is found (license number is optional but should be reported).\nResult is FAIL if the signature date is NOT FOUND on the auditor's report pages."
   },
   {
     "id": "R10",
     "name": "Filing Period Must Be Annual",
     "name_ar": "فترة الإيداع سنوية فقط",
-    "description": "The filing period must be Annual. Quarterly statements are rejected.",
+    "description": "The filing period must be Annual (12 months). Quarterly or interim statements are rejected.",
     "category": "format",
     "sector": "all",
     "severity": "error",
-    "validation_type": "pattern_match",
-    "keywords": [
-      "annual",
-      "year ended",
-      "سنوي",
-      "السنة المنتهية",
-      "twelve months",
-      "12 months"
-    ],
-    "ai_prompt": null
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are validating the filing period of a Saudi financial statement.\n\nTASK:\n1. Determine the REPORTING PERIOD of these financial statements. Look at:\n   - The title/header of the financial statements (e.g., 'for the year ended...', 'للسنة المنتهية في...')\n   - The auditor's report period reference\n   - The dates on the Statement of Income and Balance Sheet\n2. Calculate the period length: Is it 12 months (annual), 3 months (quarterly), 6 months (semi-annual), or some other period?\n3. Identify the start date and end date of the reporting period.\n\nResult is PASS if the reporting period is exactly 12 months (annual / سنوي).\nResult is FAIL if the period is quarterly (3 months), semi-annual (6 months), or any period other than 12 months.\n\nProvide the exact period dates found (e.g., '1 January 2025 to 31 December 2025')."
   },
   {
     "id": "R11",
     "name": "Date Consistency Across Pages",
     "name_ar": "تناسق التاريخ عبر الصفحات",
-    "description": "Dates on every page must match fiscal year and previous year periods.",
+    "description": "Dates on every financial statement page must match fiscal year and previous year periods.",
     "category": "financial",
     "sector": "all",
     "severity": "error",
     "validation_type": "ai_judgment",
     "keywords": [],
-    "ai_prompt": "Check all fiscal year-end dates and comparative period dates across every financial statement page (balance sheet, income statement, cash flow, equity). Are the reporting period dates (e.g., 31 Dec 2025) and comparative dates (e.g., 31 Dec 2024) consistent across ALL statements? List any date mismatches found."
+    "ai_prompt": "You are validating date consistency across a Saudi financial statement.\n\nTASK:\n1. Identify the fiscal year-end date from the financial statement title (e.g., 31 December 2025).\n2. Check the following statements for date consistency:\n   - Statement of Financial Position (Balance Sheet / قائمة المركز المالي)\n   - Statement of Income / Profit & Loss (قائمة الدخل)\n   - Statement of Comprehensive Income (قائمة الدخل الشامل)\n   - Statement of Changes in Equity (قائمة التغيرات في حقوق الملكية)\n   - Statement of Cash Flows (قائمة التدفقات النقدية)\n3. For each statement, verify: Does the current period date match the fiscal year-end? Does the comparative period date match the previous year?\n4. Report any statement where dates are inconsistent or missing.\n\nNOTE: This rule checks INTERNAL CONSISTENCY — do all financial statements show the same fiscal year-end and comparative dates? For banking/insurance sector, R16 checks additional regulatory date requirements (fiscal year alignment, comparative periods, report date ordering) — that is a separate rule.\n\nResult is PASS if all dates are consistent across all statements.\nResult is FAIL if any date mismatch is found. List the specific mismatches."
   },
   {
     "id": "R12",
-    "name": "Ministry of Commerce Registration",
-    "name_ar": "التسجيل في وزارة التجارة",
-    "description": "The company must be registered with the Ministry of Commerce.",
+    "name": "Commercial Registration Verification",
+    "name_ar": "التحقق من السجل التجاري",
+    "description": "The company's commercial registration (CR) number must be present and correctly associated with the company entity.",
     "category": "content",
     "sector": "all",
     "severity": "error",
-    "validation_type": "presence_check",
-    "keywords": [
-      "ministry of commerce",
-      "وزارة التجارة",
-      "commercial registration",
-      "سجل تجاري",
-      "CR number",
-      "CR no"
-    ],
-    "ai_prompt": null
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are validating the commercial registration (CR) in a Saudi financial statement.\n\nTASK:\n1. Find ALL Commercial Registration numbers (السجل التجاري / رقم السجل التجاري / CR) mentioned anywhere in the document.\n2. For EACH CR number found, determine WHO it belongs to:\n   - The main company being audited (head office)\n   - A branch of the company\n   - A subsidiary\n   - The audit firm\n   - A related party\n3. Identify which CR number belongs to the MAIN COMPANY ENTITY being audited.\n4. State where the main company's CR appears (page number, section).\n\nIMPORTANT:\n- This rule focuses on ENTITY ASSOCIATION — ensuring the CR is correctly attributed to the main company, not just found anywhere.\n- R02 checks whether a CR number EXISTS in the initial notes. This rule (R12) verifies the CR is CORRECTLY ASSOCIATED with the main company.\n- This rule does NOT check audit firms count (that is R01) or initial notes completeness (that is R02).\n- NPOs may have a license number instead of CR — report what identifier is present.\n\nResult is PASS if the main company's CR number is clearly identifiable and correctly associated.\nResult is FAIL if CR numbers are ambiguous (cannot determine which belongs to the main entity), or if the main company's CR is not found."
   },
   {
     "id": "R13",
     "name": "Report Type Consistency",
     "name_ar": "تناسق نوع التقرير",
-    "description": "Report type (company level/standalone vs consolidated) must match between PDF and initial form.",
+    "description": "Report type (separate/standalone vs consolidated) must be clearly identified in the financial statements.",
     "category": "content",
     "sector": "all",
     "severity": "error",
-    "validation_type": "field_extraction",
-    "keywords": [
-      "consolidated",
-      "company level",
-      "standalone",
-      "موحدة",
-      "مستقلة"
-    ],
-    "ai_prompt": "What type of financial report is this? Is it 'consolidated' or 'company level' (standalone)? Look at the title and headers of the financial statements."
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are validating the report type of a Saudi financial statement.\n\nTASK:\n1. Determine the report type from the title and headers of the financial statements:\n   - CONSOLIDATED (موحدة / مجمعة): Combined financial statements of a parent and its subsidiaries.\n   - SEPARATE (منفصلة / مستقلة): Financial statements of a single legal entity, excluding subsidiaries.\n2. Check if the report type is CONSISTENTLY stated across:\n   - The cover page / title\n   - The auditor's report heading\n   - Each financial statement heading (balance sheet, income statement, etc.)\n3. Report any inconsistencies (e.g., title says 'consolidated' but one statement says 'separate').\n\nIMPORTANT: The correct Arabic term for standalone/company-level is 'منفصلة' (separate), not 'مستقلة' (independent). However, both terms may appear in practice — report which term is actually used.\n\nResult is PASS if the report type is clearly and consistently identified.\nResult is FAIL if the report type is ambiguous, missing, or inconsistent across statements."
   },
   {
     "id": "R14",
@@ -224,57 +163,45 @@
     "category": "financial",
     "sector": "all",
     "severity": "error",
-    "validation_type": "pattern_match",
-    "keywords": [
-      "SAR",
-      "Saudi Riyal",
-      "ريال سعودي",
-      "ريال"
-    ],
-    "ai_prompt": null
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are validating the currency used in a Saudi financial statement.\n\nTASK:\n1. Identify the currency stated in the financial statements. Look for:\n   - Currency mention in the headers (e.g., 'in Saudi Riyals', 'بالريال السعودي')\n   - Currency abbreviation (SAR, SR)\n   - The statement notes about currency\n2. Check if ALL financial figures are presented in Saudi Riyals (SAR).\n3. Report if any other currency is used as the primary reporting currency.\n\nNOTE: Foreign currency disclosures in the notes (e.g., foreign exchange rates) are acceptable — only the PRIMARY reporting currency matters.\n\nResult is PASS if the primary reporting currency is SAR/Saudi Riyal.\nResult is FAIL if any other currency is used as the primary reporting currency."
   },
   {
     "id": "R15",
     "name": "Reporting Scale Validation",
     "name_ar": "التحقق من مقياس التقرير",
-    "description": "Financial reporting scale (thousands/millions/actuals) must match between PDF and initial form.",
+    "description": "Financial reporting scale (thousands/millions/actuals) must be clearly stated and consistent.",
     "category": "financial",
     "sector": "all",
     "severity": "error",
-    "validation_type": "field_extraction",
-    "keywords": [
-      "thousands",
-      "millions",
-      "آلاف",
-      "ملايين",
-      "000",
-      "000,000"
-    ],
-    "ai_prompt": "What is the reporting unit/scale of the financial statements? Look for mentions of 'thousands', 'millions', zeros next to SAR, or 'in SAR' (which means actuals). Return: THOUSANDS, MILLIONS, or ACTUALS."
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are validating the reporting scale of a Saudi financial statement.\n\nTASK:\n1. Determine the reporting scale/unit used in the financial statements:\n   - THOUSANDS (بالآلاف / in thousands): Numbers are divided by 1,000\n   - MILLIONS (بالملايين / in millions): Numbers are divided by 1,000,000\n   - ACTUALS (بالريال / in SAR): Full actual numbers\n2. Look for scale indicators in:\n   - Statement headers (e.g., 'Amounts in Saudi Riyals thousands')\n   - Parenthetical notes under titles\n   - Notes to financial statements\n3. Verify the scale is CONSISTENT across all financial statements.\n\nResult is PASS if the reporting scale is clearly stated.\nResult is FAIL if the scale is not stated or is ambiguous. Report the scale found."
   },
   {
     "id": "R16",
     "name": "Equity and Cash Flow Date Matching",
     "name_ar": "مطابقة تاريخ حقوق الملكية والتدفقات النقدية",
-    "description": "For Banking/Insurance: Shareholder's Equity and Cash Flow dates must match the end year date in the initial form.",
+    "description": "For Banking/Insurance: Shareholder's Equity and Cash Flow dates must match the end year date.",
     "category": "sector_specific",
     "sector": "banking_insurance",
     "severity": "error",
     "validation_type": "ai_judgment",
     "keywords": [],
-    "ai_prompt": "Find the dates mentioned in: 1) The Statement of Changes in Shareholders' Equity, 2) The Statement of Cash Flows. What are the period end dates in each? Do they match?"
+    "ai_prompt": "You are validating banking/insurance regulatory date requirements for a Saudi financial statement.\n\nTASK (Banking/Insurance Specific Checks — different from general R11 date consistency):\n1. FISCAL YEAR-END ALIGNMENT: Banks and insurance companies in Saudi Arabia must use a calendar year-end (December 31 / 31 ديسمبر). Verify the fiscal year ends on December 31.\n2. COMPARATIVE PERIODS: Banking statements must provide full comparative data for the prior year. Check:\n   - Statement of Changes in Shareholders' Equity: Does it show movements for BOTH current year AND prior year?\n   - Statement of Cash Flows: Does it show cash flows for BOTH current year AND prior year?\n3. AUDIT REPORT DATE vs FISCAL YEAR-END: The auditor's report date must be AFTER the fiscal year-end date. Verify the chronological order.\n4. BOARD APPROVAL DATE: If mentioned, the board approval date should fall between the fiscal year-end and the audit report date.\n\nNOTE: General date consistency across all statements (do all pages show the same fiscal year?) is checked by R11. This rule (R16) checks banking-specific REGULATORY requirements that go beyond simple consistency.\n\nResult is PASS if all banking regulatory date requirements are met.\nResult is FAIL if any requirement is not met. Specify which requirement failed."
   },
   {
     "id": "R17",
     "name": "Notes Reference Validation",
     "name_ar": "التحقق من مراجع الملاحظات",
-    "description": "If note numbers are mentioned in the PDF, they must be correct with corresponding page numbers.",
+    "description": "Note numbers referenced in financial statements must be sequential and match actual notes.",
     "category": "content",
     "sector": "all",
     "severity": "warning",
     "validation_type": "ai_judgment",
     "keywords": [],
-    "ai_prompt": "Check if the financial statements reference numbered notes. If note numbers are mentioned, verify they appear to be sequential and properly referenced. Are there any obvious gaps or errors in note numbering?"
+    "ai_prompt": "You are validating notes/disclosures references and numbering in a Saudi financial statement.\n\nTASK:\n1. COUNT THE TOTAL NUMBER OF DISCLOSURES/NOTES in the notes section. Go to the notes section and find the highest note number. Report: 'Total disclosures found: X'.\n2. Check the table of contents / index (الفهرس) if present — how many notes are listed? Does this match the actual count?\n3. In the main financial statements (balance sheet, income statement, cash flows, equity, comprehensive income), identify ALL note reference numbers used (e.g., 'Note 5', 'إيضاح 5', numbers in parentheses like '(5)').\n4. NUMBERING VERIFICATION:\n   - Are note numbers sequential (1, 2, 3... with no gaps)?\n   - Are there any DUPLICATE note numbers?\n   - Are there any SKIPPED numbers in the sequence?\n5. CROSS-REFERENCE VERIFICATION:\n   - For each note referenced in a financial statement line item, does the corresponding note actually exist in the notes section?\n   - Are there notes in the notes section with NO reference from any financial statement? (List them — these may be supplementary disclosures which are acceptable)\n6. Report a summary table: Note Number | Referenced in Statement? | Exists in Notes Section?\n\nResult is PASS if note numbering is sequential with no gaps or duplicates, and all referenced notes exist.\nResult is FAIL if there are gaps in numbering, duplicate numbers, or referenced notes that don't exist in the notes section. Notes that exist but are not referenced from statements are acceptable (supplementary disclosures) and should NOT cause a FAIL."
   },
   {
     "id": "R18",
@@ -284,25 +211,68 @@
     "category": "sector_specific",
     "sector": "npo",
     "severity": "error",
-    "validation_type": "field_extraction",
-    "keywords": [
-      "financial activity",
-      "نشاط مالي",
-      "license number",
-      "رقم الترخيص"
-    ],
-    "ai_prompt": "For this NPO financial statement: 1) What financial activity is described? 2) What is the license number? Extract from the statement title and body."
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are validating a Non-Profit Organization (NPO) financial statement.\n\nTASK:\n1. Extract the NPO's stated FINANCIAL ACTIVITY from the document title and body.\n2. Extract the NPO's LICENSE NUMBER (رقم الترخيص) — this is different from a commercial registration.\n3. Verify the financial activity description is clearly stated in the statement title.\n\nResult is PASS if both financial activity and license number are found.\nResult is FAIL if either is missing."
   },
   {
     "id": "R19",
-    "name": "Initial Form Entries Validation",
-    "name_ar": "التحقق من إدخالات النموذج الأولي",
-    "description": "All fields entered in the initial form serve as validation criteria for document conformity.",
+    "name": "Document Completeness Audit",
+    "name_ar": "التحقق الشامل من اكتمال الوثيقة",
+    "description": "Comprehensive check that the financial statement contains all essential components for a valid filing.",
     "category": "content",
     "sector": "all",
     "severity": "error",
-    "validation_type": "conditional",
+    "validation_type": "ai_judgment",
     "keywords": [],
-    "ai_prompt": null
+    "ai_prompt": "You are performing a comprehensive completeness audit of a Saudi financial statement.\n\nTASK: Verify that this document contains ALL essential components required for a valid financial statement filing. Check for the presence of:\n\n1. COVER PAGE / TITLE: Is the document title clearly stated with the company name and period?\n2. AUDITOR'S REPORT: Is the independent auditor's report present with opinion, basis, responsibilities sections?\n3. FINANCIAL STATEMENTS — verify ALL of these exist:\n   a. Statement of Financial Position (Balance Sheet / قائمة المركز المالي)\n   b. Statement of Profit or Loss / Income Statement (قائمة الدخل / قائمة الأرباح والخسائر)\n   c. Statement of Comprehensive Income (قائمة الدخل الشامل) — may be combined with income statement\n   d. Statement of Changes in Equity (قائمة التغيرات في حقوق الملكية)\n   e. Statement of Cash Flows (قائمة التدفقات النقدية)\n4. NOTES TO FINANCIAL STATEMENTS: Are explanatory notes present?\n5. DOCUMENT STATUS: Is this a FINAL document or a DRAFT? Look for watermarks, 'DRAFT' text, or missing signatures that indicate an unfinished document.\n\nFor each component, state: FOUND (with page number) or MISSING.\n\nResult is PASS if all essential components are present and the document appears to be a FINAL version.\nResult is FAIL if any essential component is missing or if the document appears to be a draft."
+  },
+  {
+    "id": "R20",
+    "name": "Financial Statement Line Items Validation",
+    "name_ar": "التحقق من بنود القوائم المالية",
+    "description": "Validates that all mandatory financial statement line items are present and figures are arithmetically consistent.",
+    "category": "financial",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are validating the line items and figures in a Saudi financial statement.\n\nTASK: Verify that each financial statement contains its MANDATORY line items and that figures are arithmetically consistent.\n\n1. STATEMENT OF FINANCIAL POSITION (Balance Sheet):\n   - Required line items: Total Assets (إجمالي الأصول), Total Liabilities (إجمالي الالتزامات), Total Equity (إجمالي حقوق الملكية)\n   - BALANCE CHECK: Total Assets MUST equal Total Liabilities + Total Equity. Extract the actual numbers and verify.\n   - Current vs Non-current classification: Are assets and liabilities split into current and non-current?\n\n2. STATEMENT OF PROFIT OR LOSS (Income Statement):\n   - Required line items: Revenue/Sales (الإيرادات), Total Expenses or Cost categories, Net Income/Loss (صافي الربح/الخسارة)\n   - Does Revenue minus Expenses approximately equal Net Income? (allow for rounding in thousands/millions)\n\n3. STATEMENT OF CASH FLOWS:\n   - Required sections: Operating Activities, Investing Activities, Financing Activities\n   - Net change in cash: Does the sum of the three sections equal the net change in cash and cash equivalents?\n   - Opening + Net Change should equal Closing cash balance\n\n4. STATEMENT OF CHANGES IN EQUITY:\n   - Opening balance, movements during the year, closing balance\n   - Does Opening + Net movements = Closing balance?\n\nFor each statement, report: which required line items are present/missing, and whether the arithmetic checks pass.\n\nResult is PASS if all mandatory line items are present and key arithmetic checks balance.\nResult is FAIL if mandatory line items are missing OR if there are arithmetic inconsistencies. Specify exactly which items are missing or which figures don't balance."
+  },
+  {
+    "id": "R21",
+    "name": "Auditor Signature and Stamp Verification",
+    "name_ar": "التحقق من توقيع وختم المراجع",
+    "description": "The auditor's report must contain a visible signature and firm stamp/seal.",
+    "category": "auditor",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are validating the auditor's signature and stamp on a Saudi financial statement.\n\nTASK: Visually inspect the auditor's report pages to verify the presence of signatures and stamps.\n\n1. AUDITOR SIGNATURE: Is there a visible signature (handwritten or digital) on the auditor's report?\n   - Where exactly does it appear? (page number, position on page)\n   - Is it a clear, legible signature or just a scribble?\n   - Is there a printed name next to/below the signature?\n\n2. FIRM STAMP/SEAL: Is there a visible audit firm stamp or seal on the auditor's report?\n   - A stamp typically shows the firm name, logo, and/or license number in a circular or rectangular format\n   - Where does it appear? (page number, position)\n   - Is it clear and legible?\n\n3. If there are TWO audit firms (joint audit, common in banking), check for signatures and stamps from BOTH firms.\n\n4. Check if the signature appears to be on the ORIGINAL document (not a photocopy where the signature might be unclear or missing).\n\nNOTE: This rule applies to ALL sectors. R01 specifically checks that banking/insurance has TWO audit firms — this rule (R21) verifies that whatever audit firms are present have proper signatures and stamps.\n\nResult is PASS if at least one auditor signature AND one firm stamp/seal are clearly visible.\nResult is FAIL if the signature is missing, the stamp is missing, or either is illegible/unclear."
+  },
+  {
+    "id": "R22",
+    "name": "Draft vs Final Document Detection",
+    "name_ar": "كشف حالة المسودة أو النهائي",
+    "description": "Detects whether the document is a draft or final version based on watermarks, markings, and completeness indicators.",
+    "category": "format",
+    "sector": "all",
+    "severity": "error",
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are checking whether a Saudi financial statement is a FINAL version or a DRAFT.\n\nTASK: Carefully inspect the document for any indicators that it is a draft or incomplete version.\n\n1. WATERMARKS: Look for any 'DRAFT' (مسودة) watermark on any page. Check background text on every page.\n2. DRAFT MARKINGS: Look for text like 'DRAFT', 'مسودة', 'FOR DISCUSSION', 'PRELIMINARY', 'NOT FINAL', 'SUBJECT TO REVIEW' anywhere in the document — headers, footers, margins, or body.\n3. MISSING SIGNATURES: A final auditor's report MUST have signatures. If the signature block exists but signatures are absent, this indicates a draft.\n4. PLACEHOLDER TEXT: Look for placeholder text like '[TO BE COMPLETED]', '[INSERT]', 'TBD', 'XX', or blank fields where values should appear.\n5. TRACK CHANGES / COMMENTS: Any visible track changes, reviewer comments, or markup indicates a draft.\n6. PAGE NUMBERING: Incomplete or inconsistent page numbering may indicate a draft.\n7. INCOMPLETE SECTIONS: Are any sections clearly unfinished or marked as pending?\n\nReport ALL indicators found, even if minor.\n\nResult is PASS if the document appears to be a FINAL, complete version with no draft indicators.\nResult is FAIL if ANY draft indicators are found. List every indicator detected."
+  },
+  {
+    "id": "R23",
+    "name": "Unified Number Validation",
+    "name_ar": "التحقق من الرقم الموحد",
+    "description": "The company's unified number (الرقم الموحد) must be present in the document.",
+    "category": "content",
+    "sector": "all",
+    "severity": "warning",
+    "validation_type": "ai_judgment",
+    "keywords": [],
+    "ai_prompt": "You are validating the unified number in a Saudi financial statement.\n\nTASK:\n1. Search for the UNIFIED NUMBER (الرقم الموحد / Unified Number / رقم موحد). This is a unique identifier assigned to Saudi companies, different from the Commercial Registration (CR) number.\n   - The unified number is typically a 10-digit number starting with '7'\n   - It may appear on the cover page, in the company information section, or in the initial notes\n\n2. Distinguish between these identifiers — they are ALL different:\n   - Commercial Registration (CR) Number (السجل التجاري): Company registration with Ministry of Commerce\n   - Unified Number (الرقم الموحد): Unique national identifier (often starts with 7, 10 digits)\n   - License Number (رقم الترخيص): Professional or sector-specific license\n   - Tax Number / VAT Number (الرقم الضريبي): Tax identification number\n\n3. Report:\n   - Is the unified number found? If yes, state the number and where it appears (page, section).\n   - Is it clearly labeled as 'الرقم الموحد' or 'Unified Number'?\n\nIMPORTANT: The ABSENCE of a CR number does NOT mean the unified number is also absent, and vice versa. These are independent identifiers. Some documents (especially NPOs) may have a license number instead of CR.\n\nResult is PASS if the unified number is found and clearly stated.\nResult is FAIL if the unified number is not found anywhere in the document."
   }
 ]

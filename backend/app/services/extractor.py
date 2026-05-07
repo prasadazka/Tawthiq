@@ -1,15 +1,87 @@
 import os
-from google.cloud import documentai
-from google.api_core.client_options import ClientOptions
+import logging
+import fitz  # PyMuPDF
 from dotenv import load_dotenv
 import vertexai
-from vertexai.generative_models import GenerativeModel, Part
+from vertexai.generative_models import GenerativeModel, GenerationConfig, Part
+from groq import Groq
 
 load_dotenv()
 
-_vertex_initialized = False
-DOCAI_PAGE_LIMIT = 15
+logger = logging.getLogger(__name__)
 
+_vertex_initialized = False
+_groq_client: Groq | None = None
+
+
+# ---------------------------------------------------------------------------
+# PyMuPDF utilities (replaces Document AI)
+# ---------------------------------------------------------------------------
+
+def get_pdf_info(pdf_bytes: bytes) -> dict:
+    """Extract page count and full text using PyMuPDF. Replaces Document AI."""
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    full_text = ""
+    page_count = len(doc)
+    for page in doc:
+        full_text += page.get_text("text") + "\n"
+    doc.close()
+    return {
+        "full_text": full_text,
+        "page_count": page_count,
+    }
+
+
+def resolve_evidence_locations(pdf_bytes: bytes, locations_data: list[dict]) -> list[dict]:
+    """Resolve evidence quotes to bounding boxes for all locations.
+
+    Args:
+        pdf_bytes: The raw PDF bytes.
+        locations_data: List of {"page": int, "bounding_boxes": [], "evidence_quotes": [...]}
+
+    Returns:
+        List of {"page": int, "bounding_boxes": [...]} in frontend-compatible format.
+        Falls back to empty bounding_boxes (full-page highlight) if no quotes found.
+    """
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    results = []
+
+    for loc in locations_data:
+        page_num = loc["page"]
+        quotes = loc.get("evidence_quotes", [])
+        all_boxes = []
+
+        if page_num >= 1 and page_num <= len(doc):
+            page = doc[page_num - 1]  # fitz uses 0-indexed
+            page_rect = page.rect
+
+            for quote in quotes:
+                if not quote or not isinstance(quote, str) or not quote.strip():
+                    continue
+                text_instances = page.search_for(quote.strip())
+                for rect in text_instances:
+                    x0 = max(0.0, min(1.0, rect.x0 / page_rect.width))
+                    y0 = max(0.0, min(1.0, rect.y0 / page_rect.height))
+                    x1 = max(0.0, min(1.0, rect.x1 / page_rect.width))
+                    y1 = max(0.0, min(1.0, rect.y1 / page_rect.height))
+                    all_boxes.append({
+                        "vertices": [
+                            {"x": x0, "y": y0},
+                            {"x": x1, "y": y0},
+                            {"x": x1, "y": y1},
+                            {"x": x0, "y": y1},
+                        ]
+                    })
+
+        results.append({"page": page_num, "bounding_boxes": all_boxes})
+
+    doc.close()
+    return results
+
+
+# ---------------------------------------------------------------------------
+# LLM query functions
+# ---------------------------------------------------------------------------
 
 def _init_vertex():
     global _vertex_initialized
@@ -21,134 +93,62 @@ def _init_vertex():
     _vertex_initialized = True
 
 
-def _get_docai_client():
-    location = os.getenv("GCP_LOCATION", "us")
-    opts = ClientOptions(api_endpoint=f"{location}-documentai.googleapis.com")
-    return documentai.DocumentProcessorServiceClient(client_options=opts)
-
-
-def _get_processor_name():
-    project_id = os.getenv("GCP_PROJECT_ID")
-    location = os.getenv("GCP_LOCATION", "us")
-    processor_id = os.getenv("GCP_PROCESSOR_ID")
-    client = _get_docai_client()
-    return client.processor_path(project_id, location, processor_id)
-
-
-def _split_pdf(pdf_bytes: bytes, chunk_size: int = DOCAI_PAGE_LIMIT) -> list[bytes]:
-    """Split PDF into chunks of chunk_size pages."""
-    import fitz  # PyMuPDF
-
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    total_pages = len(doc)
-
-    if total_pages <= chunk_size:
-        doc.close()
-        return [pdf_bytes]
-
-    chunks = []
-    for start in range(0, total_pages, chunk_size):
-        end = min(start + chunk_size, total_pages)
-        new_doc = fitz.open()
-        new_doc.insert_pdf(doc, from_page=start, to_page=end - 1)
-        chunk_bytes = new_doc.tobytes()
-        new_doc.close()
-        chunks.append(chunk_bytes)
-
-    doc.close()
-    return chunks
-
-
-def _process_chunk(chunk_bytes: bytes, client, processor_name) -> documentai.Document:
-    """Process a single PDF chunk through Document AI."""
-    raw_document = documentai.RawDocument(content=chunk_bytes, mime_type="application/pdf")
-    request = documentai.ProcessRequest(name=processor_name, raw_document=raw_document)
-    result = client.process_document(request=request)
-    return result.document
-
-
-def extract_with_document_ai(pdf_bytes: bytes) -> dict:
-    """Extract structured text, tables, and paragraph bounding boxes using Document AI OCR."""
-    client = _get_docai_client()
-    processor_name = _get_processor_name()
-
-    chunks = _split_pdf(pdf_bytes)
-
-    full_text = ""
-    pages = []
-    page_offset = 0
-
-    for chunk_bytes in chunks:
-        document = _process_chunk(chunk_bytes, client, processor_name)
-        full_text += document.text
-
-        for page in document.pages:
-            page_text = ""
-            paragraphs = []
-            for paragraph in page.paragraphs:
-                para_text = _get_text(paragraph.layout, document)
-                page_text += para_text + "\n"
-                paragraphs.append(_extract_paragraph_with_bbox(paragraph, document))
-
-            pages.append({
-                "page_number": page_offset + page.page_number,
-                "text": page_text.strip(),
-                "tables": _extract_tables(page, document),
-                "paragraphs": paragraphs,
-            })
-
-        page_offset += len(document.pages)
-
-    return {
-        "full_text": full_text,
-        "pages": pages,
-        "page_count": len(pages),
-    }
-
-
-def _extract_paragraph_with_bbox(paragraph, document) -> dict:
-    """Extract paragraph text and its bounding box coordinates."""
-    text = _get_text(paragraph.layout, document)
-    vertices = []
-    bp = paragraph.layout.bounding_poly
-    if bp and bp.normalized_vertices:
-        vertices = [{"x": float(v.x), "y": float(v.y)} for v in bp.normalized_vertices]
-    return {"text": text, "bounding_box": {"vertices": vertices}}
-
-
-def _get_text(layout, document) -> str:
-    """Extract text from a layout element using text anchors."""
-    text = ""
-    for segment in layout.text_anchor.text_segments:
-        start = int(segment.start_index) if segment.start_index else 0
-        end = int(segment.end_index)
-        text += document.text[start:end]
-    return text.strip()
-
-
-def _extract_tables(page, document) -> list[dict]:
-    """Extract tables from a page."""
-    tables = []
-    for table in page.tables:
-        header_rows = []
-        for row in table.header_rows:
-            cells = [_get_text(cell.layout, document) for cell in row.cells]
-            header_rows.append(cells)
-
-        body_rows = []
-        for row in table.body_rows:
-            cells = [_get_text(cell.layout, document) for cell in row.cells]
-            body_rows.append(cells)
-
-        tables.append({"headers": header_rows, "rows": body_rows})
-    return tables
-
-
 def query_with_gemini(pdf_bytes: bytes, prompt: str) -> str:
     """Send PDF directly to Gemini via Vertex AI for analysis."""
     _init_vertex()
     model = GenerativeModel("gemini-2.5-flash")
 
     pdf_part = Part.from_data(data=pdf_bytes, mime_type="application/pdf")
-    response = model.generate_content([pdf_part, prompt])
+    temp = float(os.getenv("GEMINI_TEMPERATURE", "0.0"))
+    config = GenerationConfig(temperature=temp)
+    response = model.generate_content([pdf_part, prompt], generation_config=config)
     return response.text
+
+
+def _get_groq_client() -> Groq:
+    global _groq_client
+    if _groq_client is None:
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            raise RuntimeError("GROQ_API_KEY environment variable is not set")
+        _groq_client = Groq(api_key=api_key)
+    return _groq_client
+
+
+def query_with_groq(prompt: str, document_text: str) -> str:
+    """Send extracted document text to Groq LLM for analysis."""
+    client = _get_groq_client()
+    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a financial document validator. You will be given extracted text from a PDF document and must validate it according to the given rules. Always respond in the exact JSON format requested.",
+            },
+            {
+                "role": "user",
+                "content": f"DOCUMENT TEXT:\n{document_text}\n\n---\n\n{prompt}",
+            },
+        ],
+        temperature=float(os.getenv("GROQ_TEMPERATURE", "0.1")),
+        max_tokens=1024,
+    )
+    return response.choices[0].message.content
+
+
+def query_llm(prompt: str, document_text: str, pdf_bytes: bytes | None = None) -> str:
+    """Unified LLM query — routes to Groq or Vertex AI based on LLM_PROVIDER env var.
+
+    Set LLM_PROVIDER=gemini (default) to use Vertex AI Gemini with raw PDF bytes.
+    Set LLM_PROVIDER=groq to use Groq with extracted text.
+    """
+    provider = os.getenv("LLM_PROVIDER", "gemini").lower()
+
+    if provider == "gemini":
+        if pdf_bytes is None:
+            raise ValueError("pdf_bytes is required when LLM_PROVIDER=gemini")
+        return query_with_gemini(pdf_bytes, prompt)
+
+    return query_with_groq(prompt, document_text)

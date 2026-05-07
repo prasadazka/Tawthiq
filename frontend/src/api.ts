@@ -1,5 +1,5 @@
 const API_BASE = import.meta.env.PROD
-  ? "https://tawthiq-backend-273154047321.us-central1.run.app"
+  ? "https://tawthiq-backend-pn5c6ojp4a-uc.a.run.app"
   : "";
 
 export interface BoundingBox {
@@ -15,7 +15,7 @@ export interface RuleResult {
   rule_id: string;
   rule_name: string;
   description: string;
-  status: "pass" | "fail" | "skip" | "error";
+  status: "pass" | "fail" | "skip" | "error" | "not_applicable";
   details: string;
   severity: string;
   locations: RuleLocation[];
@@ -35,6 +35,7 @@ export interface ValidationResponse {
     failed: number;
     errors: number;
     skipped: number;
+    not_applicable: number;
   };
   results: RuleResult[];
 }

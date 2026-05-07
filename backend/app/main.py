@@ -10,7 +10,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "https://tawthiq-frontend-273154047321.us-central1.run.app",
+        "https://tawthiq-frontend-pn5c6ojp4a-uc.a.run.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],

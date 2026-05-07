@@ -7,7 +7,8 @@ interface Props {
 
 export default function ValidationResults({ data, onReset }: Props) {
   const { summary, results, filename, extraction } = data;
-  const passRate = summary.total > 0 ? Math.round((summary.passed / summary.total) * 100) : 0;
+  const applicableTotal = summary.total - (summary.not_applicable || 0);
+  const passRate = applicableTotal > 0 ? Math.round((summary.passed / applicableTotal) * 100) : 0;
 
   return (
     <div className="results">
@@ -54,6 +55,11 @@ export default function ValidationResults({ data, onReset }: Props) {
           <span className="stat-num">{summary.errors}</span>
           <span className="stat-label">Errors</span>
         </div>
+        <div className="stat">
+          <span className="stat-dot dot-not_applicable" />
+          <span className="stat-num">{summary.not_applicable}</span>
+          <span className="stat-label">N/A</span>
+        </div>
       </div>
 
       {/* Rule rows */}
@@ -68,7 +74,7 @@ export default function ValidationResults({ data, onReset }: Props) {
                   <span className="rule-id">{r.rule_id}</span>
                   <span className="rule-name">{r.rule_name}</span>
                   <span className={`rule-badge badge-${r.status}`}>
-                    {r.status}
+                    {r.status === "not_applicable" ? "N/A" : r.status}
                   </span>
                 </div>
                 <p className="rule-details">{r.details}</p>
