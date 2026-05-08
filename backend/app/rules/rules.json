@@ -183,13 +183,13 @@
     "id": "R16",
     "name": "Equity and Cash Flow Date Matching",
     "name_ar": "مطابقة تاريخ حقوق الملكية والتدفقات النقدية",
-    "description": "For Banking/Insurance: Shareholder's Equity and Cash Flow dates must match the end year date.",
-    "category": "sector_specific",
-    "sector": "banking_insurance",
+    "description": "Statement of Changes in Equity and Statement of Cash Flows must show comparative periods matching the fiscal year-end date.",
+    "category": "financial",
+    "sector": "all",
     "severity": "error",
     "validation_type": "ai_judgment",
     "keywords": [],
-    "ai_prompt": "You are validating banking/insurance regulatory date requirements for a Saudi financial statement.\n\nTASK (Banking/Insurance Specific Checks — different from general R11 date consistency):\n1. FISCAL YEAR-END ALIGNMENT: Banks and insurance companies in Saudi Arabia must use a calendar year-end (December 31 / 31 ديسمبر). Verify the fiscal year ends on December 31.\n2. COMPARATIVE PERIODS: Banking statements must provide full comparative data for the prior year. Check:\n   - Statement of Changes in Shareholders' Equity: Does it show movements for BOTH current year AND prior year?\n   - Statement of Cash Flows: Does it show cash flows for BOTH current year AND prior year?\n3. AUDIT REPORT DATE vs FISCAL YEAR-END: The auditor's report date must be AFTER the fiscal year-end date. Verify the chronological order.\n4. BOARD APPROVAL DATE: If mentioned, the board approval date should fall between the fiscal year-end and the audit report date.\n\nNOTE: General date consistency across all statements (do all pages show the same fiscal year?) is checked by R11. This rule (R16) checks banking-specific REGULATORY requirements that go beyond simple consistency.\n\nResult is PASS if all banking regulatory date requirements are met.\nResult is FAIL if any requirement is not met. Specify which requirement failed."
+    "ai_prompt": "You are validating comparative period dates in a Saudi financial statement.\n\nTASK: Verify that the Statement of Changes in Equity and Statement of Cash Flows have correct and matching dates.\n\n1. STATEMENT OF CHANGES IN EQUITY:\n   - Does it show movements for the CURRENT year (e.g., 'For the year ended 31 December 2025')?\n   - Does it show comparative movements for the PRIOR year (e.g., 'For the year ended 31 December 2024')?\n   - Do the opening/closing dates match the fiscal year-end on the Balance Sheet?\n\n2. STATEMENT OF CASH FLOWS:\n   - Does it show cash flows for the CURRENT year?\n   - Does it show comparative cash flows for the PRIOR year?\n   - Does the closing cash balance date match the fiscal year-end on the Balance Sheet?\n\n3. DATE CONSISTENCY:\n   - The fiscal year-end date on the Equity and Cash Flow statements must match the date on the Statement of Financial Position (Balance Sheet).\n   - Both statements must provide full comparative data for the prior period (IFRS requirement IAS 1.38).\n\nResult is PASS if both statements show current and prior year data with dates matching the Balance Sheet fiscal year-end.\nResult is FAIL if comparative data is missing OR dates do not match the Balance Sheet. Specify which statement and what is wrong."
   },
   {
     "id": "R17",
