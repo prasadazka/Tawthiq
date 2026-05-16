@@ -70,7 +70,7 @@ class XBRLDataExtractor:
         country_name = self.country.capitalize()
         return f"""You are extracting structured financial data from a {country_name} company annual report PDF for XBRL generation.
 
-TASK: Read the entire PDF and produce a single JSON object that EXACTLY matches the schema below.
+TASK: Read the entire PDF carefully (including page 1, audit report, all notes, signature blocks) and produce a single JSON object that EXACTLY matches the schema below.
 
 CRITICAL RULES:
 1. Output ONLY valid JSON — no markdown fences, no explanations, no preamble.
@@ -82,14 +82,48 @@ CRITICAL RULES:
 7. For dimensional arrays (shareholders, directors, property_plant_equipment), include ALL items found in the document.
 8. Negative values (losses, decreases) must be negative numbers, not strings.
 
+WHERE TO FIND CRITICAL FIELDS — SEARCH EVERY PAGE:
+
+CIN (Corporate Identification Number, 21 characters, format like U52393TG2011PTC072492):
+- Look on the cover page or first page of the document
+- Look in the auditor's report header/letterhead (often appears alongside the company name)
+- Look in Note 1 "Corporate Information" or "Organisation and Activities"
+- Look at the bottom of the Balance Sheet under company signature block
+- Look on the directors' report letterhead
+- The CIN is mandatory in every Indian filing — it MUST be present somewhere
+
+REGISTERED OFFICE ADDRESS:
+- Look in Note 1 "Corporate Information" (it almost always lists the registered office)
+- Look in the auditor's report addressee line ("To the Members of [Company]" usually precedes address)
+- Look in the company letterhead at top of cover page
+- Look at the signature block on the balance sheet ("Place: Hyderabad", "Date: ...")
+- Combine street, area, city, state code, PIN code into a single address string
+
+DIRECTOR IDENTIFICATION NUMBER (DIN — exactly 8 digits):
+- Listed in the directors' signature block on the balance sheet
+- Listed in the directors' report or board report annexure
+- Format: DIN: 12345678 or (DIN: 12345678) or directly below the director name
+- Every director MUST have a DIN — if you see a director name without a DIN nearby, search adjacent pages
+- DIN is always exactly 8 numeric digits (e.g., 03363685, 00112233)
+
+INDUSTRY TYPE — MUST MAP business description to one of these MCA classifications:
+- "Commercial and Industrial" → Use for ALL trading, retail, manufacturing, services, jewellery,
+  garments, electronics, FMCG, real estate, IT, telecom, hospitality, healthcare, education, etc.
+  (This is the catch-all for non-financial businesses.)
+- "Banking" → Banks, scheduled commercial banks, cooperative banks
+- "NBFC" → Non-Banking Financial Companies, lending companies, housing finance
+- "Insurance" → Life or general insurance companies
+- "Power" → Electricity generation, transmission, distribution, renewable energy
+DO NOT output the business activity itself (e.g., "Jewellery Retail" is WRONG — use "Commercial and Industrial").
+
 EXTRACTION TARGETS:
-- Company identity (name, CIN/registration number, address, industry, PAN, etc.)
+- Company identity (name, CIN, registered address, industry, PAN, type)
 - Reporting period (current and prior year dates, report type, level of rounding, cash flow method)
 - Balance Sheet (current AND prior year — all asset/liability/equity line items)
 - Profit & Loss (current AND prior year — revenue, expenses, profit)
 - Cash Flow (current year — operating/investing/financing activities, opening/closing cash)
-- Auditor details (firm name, partner name, membership number, address, signature date, opinion type)
-- Directors list (name, DIN, designation, signing role)
+- Auditor details (firm name, FRN, partner name, membership number, address, signature date, opinion type)
+- Directors list (name, DIN, designation, signing role) — search all pages including signature blocks
 - Shareholders list (≥5% holders with name, PAN if available, shares, percentage)
 - Share capital classes (authorized and issued)
 - Property/Plant/Equipment movement schedule (if present)
