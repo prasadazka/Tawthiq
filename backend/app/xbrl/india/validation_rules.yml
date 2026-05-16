@@ -1,0 +1,408 @@
+# Indian XBRL — Pre-Generation Validation Rules
+# Each rule is machine-executable: check_type maps to a method in validator.py,
+# check_params supplies the parameters. The 'description' is for human review;
+# the engine reads check_type and check_params only.
+
+ruleset_version: "1.0"
+country: india
+filing_authority: "Ministry of Corporate Affairs (MCA)"
+
+# Severity: error blocks XBRL gen, warning flags but proceeds, info is FYI.
+
+# Supported check_type values (handled in validator.py):
+#   required         — field must be present and not null
+#   regex            — field matches regex pattern
+#   string_length    — field string length in [min, max]
+#   number_range     — numeric field in [min, max] (inclusive)
+#   enum             — field value is one of the allowed values
+#   all_required     — multiple named fields all not null
+#   array_min_length — field is array with length >= min
+#   array_all_match  — all items in array satisfy a sub-check
+#   fields_equal     — two fields equal (with optional tolerance)
+#   fields_sum       — field equals sum of named fields (with tolerance)
+#   date_after       — date field is after another date field
+#   date_diff_months — months between two date fields equals N
+#   array_any_match  — at least one array item satisfies sub-check
+#   array_sum_max    — sum of a field across array items <= max
+
+rules:
+
+  # ─── COMPANY IDENTITY ───────────────────────────────────────────────────────
+  - id: IN_R01
+    name: "CIN Required and Valid Format"
+    category: company_identity
+    severity: error
+    description: "CIN must be present and match the 21-char MCA format"
+    check_type: regex
+    check_params:
+      field: company.cin
+      pattern: '^[ULC]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}$'
+      required: true
+    error_message: "CIN missing or invalid. Expected format: U52393TG2011PTC072492."
+
+  - id: IN_R02
+    name: "Company Name Required"
+    category: company_identity
+    severity: error
+    check_type: string_length
+    check_params:
+      field: company.name
+      required: true
+      min: 3
+
+  - id: IN_R03
+    name: "Registered Address Required"
+    category: company_identity
+    severity: error
+    check_type: string_length
+    check_params:
+      field: company.registered_address
+      required: true
+      min: 10
+
+  - id: IN_R04
+    name: "Industry Type Required"
+    category: company_identity
+    severity: error
+    check_type: enum
+    check_params:
+      field: company.industry_type
+      required: true
+      allowed: ["Commercial and Industrial", "Banking", "NBFC", "Insurance", "Power"]
+
+  - id: IN_R05
+    name: "PAN Format Valid (if provided)"
+    category: company_identity
+    severity: warning
+    check_type: regex
+    check_params:
+      field: company.pan
+      pattern: '^[A-Z]{5}\d{4}[A-Z]$'
+      required: false   # only validates if value present
+
+  # ─── REPORTING PERIOD ───────────────────────────────────────────────────────
+  - id: IN_R06
+    name: "Reporting Period Dates Present"
+    category: reporting_period
+    severity: error
+    check_type: all_required
+    check_params:
+      fields:
+        - reporting_period.start_date
+        - reporting_period.end_date
+        - reporting_period.prior_year_start
+        - reporting_period.prior_year_end
+    error_message: "All four period dates (current and prior, start and end) are mandatory."
+
+  - id: IN_R07
+    name: "Reporting Period Length 12 Months"
+    category: reporting_period
+    severity: warning
+    check_type: date_diff_months
+    check_params:
+      from_field: reporting_period.start_date
+      to_field: reporting_period.end_date
+      expected: 12
+      tolerance_months: 0
+    error_message: "Reporting period not 12 months. Acceptable for first year / transformation / liquidation cases."
+
+  - id: IN_R08
+    name: "Current Year After Prior Year"
+    category: reporting_period
+    severity: error
+    check_type: date_after
+    check_params:
+      field: reporting_period.start_date
+      after_field: reporting_period.prior_year_end
+
+  - id: IN_R09
+    name: "Report Type Specified"
+    category: reporting_period
+    severity: error
+    check_type: enum
+    check_params:
+      field: reporting_period.report_type
+      required: true
+      allowed: ["Standalone", "Consolidated"]
+
+  # ─── BALANCE SHEET ──────────────────────────────────────────────────────────
+  - id: IN_R10
+    name: "Total Assets Present — Current Year"
+    category: balance_sheet
+    severity: error
+    check_type: number_range
+    check_params:
+      field: balance_sheet.current_year.assets.total_assets
+      required: true
+      min: 0
+      exclusive_min: true
+
+  - id: IN_R11
+    name: "Total Assets Present — Prior Year"
+    category: balance_sheet
+    severity: error
+    check_type: number_range
+    check_params:
+      field: balance_sheet.prior_year.assets.total_assets
+      required: true
+      min: 0
+      exclusive_min: true
+
+  - id: IN_R12
+    name: "Balance Sheet Equation — Current Year"
+    category: balance_sheet
+    severity: error
+    check_type: fields_equal
+    check_params:
+      field_a: balance_sheet.current_year.assets.total_assets
+      field_b: balance_sheet.current_year.equity_and_liabilities.total_equity_and_liabilities
+      tolerance: 1
+    error_message: "Total Assets must equal Total Equity + Liabilities (current year)."
+
+  - id: IN_R13
+    name: "Balance Sheet Equation — Prior Year"
+    category: balance_sheet
+    severity: error
+    check_type: fields_equal
+    check_params:
+      field_a: balance_sheet.prior_year.assets.total_assets
+      field_b: balance_sheet.prior_year.equity_and_liabilities.total_equity_and_liabilities
+      tolerance: 1
+    error_message: "Total Assets must equal Total Equity + Liabilities (prior year)."
+
+  - id: IN_R14
+    name: "Share Capital Disclosed"
+    category: balance_sheet
+    severity: error
+    check_type: number_range
+    check_params:
+      field: balance_sheet.current_year.equity_and_liabilities.share_capital
+      required: true
+      min: 0
+
+  - id: IN_R15
+    name: "Current/Non-current Classification Present"
+    category: balance_sheet
+    severity: warning
+    check_type: all_required
+    check_params:
+      fields:
+        - balance_sheet.current_year.equity_and_liabilities.current_liabilities
+        - balance_sheet.current_year.equity_and_liabilities.non_current_liabilities
+    error_message: "Schedule III requires current/non-current classification."
+
+  # ─── PROFIT & LOSS ──────────────────────────────────────────────────────────
+  - id: IN_R16
+    name: "Revenue from Operations Present"
+    category: profit_loss
+    severity: error
+    check_type: number_range
+    check_params:
+      field: profit_loss.current_year.revenue_from_operations
+      required: true
+      min: 0
+
+  - id: IN_R17
+    name: "Profit/Loss for Period Present"
+    category: profit_loss
+    severity: error
+    check_type: required
+    check_params:
+      field: profit_loss.current_year.profit_for_period
+
+  - id: IN_R18
+    name: "Total Revenue = RevFromOps + OtherIncome"
+    category: profit_loss
+    severity: warning
+    check_type: fields_sum
+    check_params:
+      total_field: profit_loss.current_year.total_revenue
+      sum_fields:
+        - profit_loss.current_year.revenue_from_operations
+        - profit_loss.current_year.other_income
+      tolerance: 100
+
+  - id: IN_R19
+    name: "Profit Before Tax = Total Revenue - Total Expenses"
+    category: profit_loss
+    severity: warning
+    check_type: fields_equal
+    check_params:
+      field_a: profit_loss.current_year.profit_before_tax
+      field_b_expression:
+        operation: subtract
+        operands:
+          - profit_loss.current_year.total_revenue
+          - profit_loss.current_year.expenses.total_expenses
+      tolerance: 100
+
+  - id: IN_R20
+    name: "Prior Year P&L Comparative Present"
+    category: profit_loss
+    severity: error
+    check_type: required
+    check_params:
+      field: profit_loss.prior_year.profit_for_period
+
+  # ─── CASH FLOW ──────────────────────────────────────────────────────────────
+  - id: IN_R21
+    name: "Cash Flow Sections Present"
+    category: cash_flow
+    severity: error
+    check_type: all_required
+    check_params:
+      fields:
+        - cash_flow.current_year.cash_from_operating_activities
+        - cash_flow.current_year.cash_from_investing_activities
+        - cash_flow.current_year.cash_from_financing_activities
+
+  - id: IN_R22
+    name: "Cash Flow Reconciliation"
+    category: cash_flow
+    severity: warning
+    check_type: fields_equal
+    check_params:
+      field_a: cash_flow.current_year.cash_at_end_of_period
+      field_b_expression:
+        operation: add
+        operands:
+          - cash_flow.current_year.cash_at_beginning_of_period
+          - cash_flow.current_year.net_increase_decrease_in_cash
+      tolerance: 100
+
+  - id: IN_R23
+    name: "Cash Flow Method Specified"
+    category: cash_flow
+    severity: warning
+    check_type: enum
+    check_params:
+      field: reporting_period.cash_flow_method
+      allowed: ["Direct Method", "Indirect Method"]
+
+  # ─── AUDITOR ────────────────────────────────────────────────────────────────
+  - id: IN_R24
+    name: "Auditor Firm Name Present"
+    category: auditor
+    severity: error
+    check_type: required
+    check_params:
+      field: auditor.firm_name
+
+  - id: IN_R25
+    name: "Auditor Partner Name Present"
+    category: auditor
+    severity: error
+    check_type: required
+    check_params:
+      field: auditor.partner_name
+
+  - id: IN_R26
+    name: "Auditor Membership Number Present"
+    category: auditor
+    severity: error
+    check_type: required
+    check_params:
+      field: auditor.membership_number
+
+  - id: IN_R27
+    name: "Audit Signature Date After Year-End"
+    category: auditor
+    severity: error
+    check_type: date_after
+    check_params:
+      field: auditor.signature_date
+      after_field: reporting_period.end_date
+    error_message: "Audit signature date must be after the fiscal year-end."
+
+  # ─── GOVERNANCE ─────────────────────────────────────────────────────────────
+  - id: IN_R28
+    name: "At Least One Director Listed"
+    category: governance
+    severity: error
+    check_type: array_min_length
+    check_params:
+      field: directors
+      min: 1
+
+  - id: IN_R29
+    name: "All Directors Have Valid DIN"
+    category: governance
+    severity: error
+    check_type: array_all_match
+    check_params:
+      field: directors
+      sub_check:
+        check_type: regex
+        check_params:
+          field: din
+          pattern: '^\d{8}$'
+          required: true
+    error_message: "Each director must have a valid 8-digit DIN."
+
+  - id: IN_R30
+    name: "Board Approval Date Present"
+    category: governance
+    severity: error
+    check_type: required
+    check_params:
+      field: board_approval.date_of_board_meeting
+
+  # ─── SHAREHOLDERS ───────────────────────────────────────────────────────────
+  - id: IN_R31
+    name: "Major Shareholders (>=5%) Disclosed"
+    category: shareholders
+    severity: warning
+    check_type: array_any_match
+    check_params:
+      field: shareholders
+      sub_check:
+        check_type: number_range
+        check_params:
+          field: percentage_held
+          min: 5
+    error_message: "Companies Act requires disclosure of shareholders holding 5% or more."
+
+  - id: IN_R32
+    name: "Shareholder Percentages Sum Reasonable"
+    category: shareholders
+    severity: warning
+    check_type: array_sum_max
+    check_params:
+      field: shareholders
+      sum_of: percentage_held
+      max: 100.5
+      tolerance: 0.5
+
+  # ─── XBRL FORMAT ────────────────────────────────────────────────────────────
+  - id: IN_R33
+    name: "Level of Rounding Specified"
+    category: xbrl_format
+    severity: error
+    check_type: enum
+    check_params:
+      field: reporting_period.level_of_rounding
+      required: true
+      allowed: ["Actual", "Thousands", "Lakhs", "Millions", "Crores"]
+
+# ─── Summary Stats ────────────────────────────────────────────────────────────
+summary:
+  total_rules: 33
+  by_severity:
+    error: 22
+    warning: 11
+  by_category:
+    company_identity: 5
+    reporting_period: 4
+    balance_sheet: 6
+    profit_loss: 5
+    cash_flow: 3
+    auditor: 4
+    governance: 3
+    shareholders: 2
+    xbrl_format: 1
+
+# ─── Validation Behavior ──────────────────────────────────────────────────────
+behavior:
+  block_on_severity: error      # XBRL generation blocked if any 'error' rule fails
+  proceed_with_warnings: true
+  report_all_rules: true        # Include passing rules in response report

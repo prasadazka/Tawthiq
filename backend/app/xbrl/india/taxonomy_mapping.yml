@@ -1,0 +1,555 @@
+# Indian XBRL — Taxonomy Mapping
+# Maps each field in extraction_schema.yml to a real XBRL element + context + unit.
+# All XBRL tags below are VERIFIED to exist in the Ramson Jewellers sample.
+# Format: <json_path>: { tag, context, unit, decimals }
+
+mapping_version: "1.0"
+taxonomy_version: "2016-03-31"
+
+# ─── COMPANY METADATA (in-ca namespace) ───────────────────────────────────────
+mappings:
+
+  # Special handling — CIN goes into xbrli:identifier, not as a regular fact
+  company.cin:
+    special: entity_identifier
+    scheme: "http://www.mca.gov.in/CIN"
+
+  company.name:
+    tag: "in-ca:NameOfCompany"
+    context: D_CY
+    type: string
+
+  company.registered_address:
+    tag: "in-ca:AddressOfRegisteredOfficeOfCompany"
+    context: D_CY
+    type: string
+
+  company.state:
+    tag: "in-ca:NameOfStateOrUnionTerritory"
+    context: D_CY
+    type: string
+
+  company.industry_type:
+    tag: "in-ca:TypeOfIndustry"
+    context: D_CY
+    type: enum
+
+  company.company_type:
+    tag: "in-ca:NatureOfCompany"
+    context: D_CY
+    type: enum
+
+  company.email:
+    tag: "in-ca:EmailIdOfCompany"
+    context: D_CY
+    type: string
+
+  company.telephone:
+    tag: "in-ca:TelephoneNumberOfCompany"
+    context: D_CY
+    type: string
+
+  company.website:
+    tag: "in-ca:WebsiteOfCompany"
+    context: D_CY
+    type: string
+
+  # ─── REPORTING PERIOD ────────────────────────────────────────────────────────
+  reporting_period.start_date:
+    tag: "in-ca:DateOfStartOfReportingPeriod"
+    context: D_CY
+    type: date
+
+  reporting_period.end_date:
+    tag: "in-ca:DateOfEndOfReportingPeriod"
+    context: D_CY
+    type: date
+
+  reporting_period.prior_year_start:
+    tag: "in-ca:DateOfStartOfReportingPeriod"
+    context: D_PY
+    type: date
+
+  reporting_period.prior_year_end:
+    tag: "in-ca:DateOfEndOfReportingPeriod"
+    context: D_PY
+    type: date
+
+  reporting_period.level_of_rounding:
+    tag: "in-ca:LevelOfRoundingUsedInFinancialStatements"
+    context: D_CY
+    type: enum
+
+  reporting_period.cash_flow_method:
+    tag: "in-ca:TypeOfCashFlowStatement"
+    context: D_CY
+    type: enum
+
+  reporting_period.report_type:
+    tag: "in-ca:NatureOfReportStandaloneConsolidated"
+    context: D_CY
+    type: enum
+
+  # ─── BALANCE SHEET — CURRENT YEAR (Instant context I_CY) ────────────────────
+  balance_sheet.current_year.equity_and_liabilities.share_capital:
+    tag: "in-gaap:ShareCapital"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.current_year.equity_and_liabilities.reserves_and_surplus:
+    tag: "in-gaap:Reserves"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.current_year.equity_and_liabilities.non_current_liabilities.long_term_borrowings:
+    tag: "in-gaap:LongTermBorrowings"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.current_year.equity_and_liabilities.non_current_liabilities.deferred_tax_liabilities:
+    tag: "in-gaap:DeferredTaxLiabilities"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.current_year.equity_and_liabilities.current_liabilities.short_term_borrowings:
+    tag: "in-gaap:ShortTermBorrowings"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.current_year.equity_and_liabilities.current_liabilities.trade_payables:
+    tag: "in-gaap:TradePayables"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.current_year.equity_and_liabilities.current_liabilities.other_current_liabilities:
+    tag: "in-gaap:OtherCurrentLiabilities"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.current_year.equity_and_liabilities.current_liabilities.short_term_provisions:
+    tag: "in-gaap:ShortTermProvisions"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.current_year.assets.non_current_assets.tangible_assets:
+    tag: "in-gaap:TangibleAssets"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.current_year.assets.non_current_assets.intangible_assets:
+    tag: "in-gaap:IntangibleAssets"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.current_year.assets.non_current_assets.non_current_investments:
+    tag: "in-gaap:NonCurrentInvestments"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.current_year.assets.non_current_assets.deferred_tax_assets:
+    tag: "in-gaap:DeferredTaxAssets"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.current_year.assets.current_assets.inventories:
+    tag: "in-gaap:Inventories"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.current_year.assets.current_assets.trade_receivables:
+    tag: "in-gaap:TradeReceivables"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.current_year.assets.current_assets.cash_and_bank_balances:
+    tag: "in-gaap:CashAndBankBalances"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.current_year.assets.current_assets.short_term_loans_and_advances:
+    tag: "in-gaap:ShortTermLoansAndAdvances"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.current_year.assets.total_assets:
+    tag: "in-gaap:Assets"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  # ─── BALANCE SHEET — PRIOR YEAR (I_PY) — same tags, different context ──────
+  # (Generator will mirror current_year mappings with context: I_PY)
+  balance_sheet.prior_year.assets.total_assets:
+    tag: "in-gaap:Assets"
+    context: I_PY
+    unit: INR
+    decimals: 0
+
+  balance_sheet.prior_year.equity_and_liabilities.share_capital:
+    tag: "in-gaap:ShareCapital"
+    context: I_PY
+    unit: INR
+    decimals: 0
+  # ... (similar for all prior_year fields — auto-mirrored by generator)
+
+  # ─── PROFIT & LOSS — CURRENT YEAR (Duration D_CY) ───────────────────────────
+  profit_loss.current_year.revenue_from_operations:
+    tag: "in-gaap:RevenueFromOperations"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  profit_loss.current_year.other_income:
+    tag: "in-gaap:OtherIncome"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  profit_loss.current_year.total_revenue:
+    tag: "in-gaap:Revenue"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  profit_loss.current_year.expenses.cost_of_materials_consumed:
+    tag: "in-gaap:CostOfMaterialsConsumed"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  profit_loss.current_year.expenses.purchases_of_stock_in_trade:
+    tag: "in-gaap:PurchaseOfStockInTrade"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  profit_loss.current_year.expenses.changes_in_inventories:
+    tag: "in-gaap:ChangesInInventoriesOfFinishedGoodsWorkInProgressAndStockInTrade"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  profit_loss.current_year.expenses.employee_benefits_expense:
+    tag: "in-gaap:EmployeeBenefitExpense"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  profit_loss.current_year.expenses.finance_costs:
+    tag: "in-gaap:FinanceCosts"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  profit_loss.current_year.expenses.depreciation_amortisation:
+    tag: "in-gaap:DepreciationAmortisationAndDepletionExpense"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  profit_loss.current_year.expenses.other_expenses:
+    tag: "in-gaap:OtherExpenses"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  profit_loss.current_year.profit_before_tax:
+    tag: "in-gaap:ProfitBeforeTax"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  profit_loss.current_year.tax_expense.total_tax_expense:
+    tag: "in-gaap:TaxExpense"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  profit_loss.current_year.profit_for_period:
+    tag: "in-gaap:ProfitLossForPeriod"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  profit_loss.current_year.earnings_per_share.basic:
+    tag: "in-gaap:BasicEarningsLossPerShareFromContinuingAndDiscontinuedOperations"
+    context: D_CY
+    unit: INRPerShare
+    decimals: 2
+
+  profit_loss.current_year.earnings_per_share.diluted:
+    tag: "in-gaap:DilutedEarningsLossPerShareFromContinuingAndDiscontinuedOperations"
+    context: D_CY
+    unit: INRPerShare
+    decimals: 2
+
+  # ─── PROFIT & LOSS — PRIOR YEAR (D_PY) ──────────────────────────────────────
+  profit_loss.prior_year.profit_for_period:
+    tag: "in-gaap:ProfitLossForPeriod"
+    context: D_PY
+    unit: INR
+    decimals: 0
+
+  profit_loss.prior_year.total_revenue:
+    tag: "in-gaap:Revenue"
+    context: D_PY
+    unit: INR
+    decimals: 0
+  # (generator auto-mirrors the rest)
+
+  # ─── CASH FLOW STATEMENT ────────────────────────────────────────────────────
+  cash_flow.current_year.cash_from_operating_activities:
+    tag: "in-gaap:CashFlowsFromUsedInOperatingActivities"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  cash_flow.current_year.cash_from_investing_activities:
+    tag: "in-gaap:CashFlowsFromUsedInInvestingActivities"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  cash_flow.current_year.cash_from_financing_activities:
+    tag: "in-gaap:CashFlowsFromUsedInFinancingActivities"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  cash_flow.current_year.net_increase_decrease_in_cash:
+    tag: "in-gaap:NetIncreaseDecreaseInCashAndCashEquivalents"
+    context: D_CY
+    unit: INR
+    decimals: 0
+
+  cash_flow.current_year.cash_at_beginning_of_period:
+    tag: "in-gaap:CashAndCashEquivalentsCashFlowStatement"
+    context: I_PY
+    unit: INR
+    decimals: 0
+
+  cash_flow.current_year.cash_at_end_of_period:
+    tag: "in-gaap:CashAndCashEquivalentsCashFlowStatement"
+    context: I_CY
+    unit: INR
+    decimals: 0
+
+  # ─── AUDITOR (Dimensional — uses AuditorsDomain context) ────────────────────
+  # These mappings expand into multiple facts if multiple auditors exist
+  auditor.firm_name:
+    tag: "in-ca:NameOfAuditFirm"
+    context: AuditorsDomain_D_CY
+    type: string
+    dimensional: true
+
+  auditor.firm_registration_number:
+    tag: "in-ca:FirmRegistrationNumberOfAuditFirm"
+    context: AuditorsDomain_D_CY
+    type: string
+    dimensional: true
+
+  auditor.partner_name:
+    tag: "in-ca:NameOfAuditorSigningReport"
+    context: AuditorsDomain_D_CY
+    type: string
+    dimensional: true
+
+  auditor.membership_number:
+    tag: "in-ca:MembershipNumberOfAuditorOrAuditorsRepresentative"
+    context: AuditorsDomain_D_CY
+    type: string
+    dimensional: true
+
+  auditor.address:
+    tag: "in-ca:AddressOfAuditors"
+    context: AuditorsDomain_D_CY
+    type: string
+    dimensional: true
+
+  auditor.signature_date:
+    tag: "in-ca:DateOfSigningAuditReportByAuditors"
+    context: AuditorsDomain_D_CY
+    type: date
+    dimensional: true
+
+  # ─── BOARD APPROVAL ─────────────────────────────────────────────────────────
+  board_approval.date_of_board_meeting:
+    tag: "in-ca:DateOfBoardMeetingWhenFinalAccountsWereApproved"
+    context: D_CY
+    type: date
+
+  board_approval.date_of_signing_balance_sheet:
+    tag: "in-ca:DateOfSigningOfBalanceSheetByAuditors"
+    context: D_CY
+    type: date
+
+  # ─── SHAREHOLDERS (Dimensional array — generator builds Tab_*_309_* contexts) ─
+  shareholders[*].name:
+    tag: "in-gaap:NameOfShareholder"
+    context_pattern: "Tab_D_CY_309_{idx}"
+    dimension: "in-gaap:NameOfShareholderAxis"
+    type: string
+    dimensional: true
+
+  shareholders[*].pan:
+    tag: "in-ca:PANOfShareholder"
+    context_pattern: "Tab_D_CY_309_{idx}"
+    dimension: "in-gaap:NameOfShareholderAxis"
+    type: string
+    dimensional: true
+
+  shareholders[*].shares_held:
+    tag: "in-gaap:NumberOfSharesHeldInCompany"
+    context_pattern: "Tab_I_CY_309_{idx}"
+    dimension: "in-gaap:NameOfShareholderAxis"
+    unit: shares
+    decimals: 0
+    dimensional: true
+
+  shareholders[*].percentage_held:
+    tag: "in-gaap:PercentageOfShareholdingInCompany"
+    context_pattern: "Tab_I_CY_309_{idx}"
+    dimension: "in-gaap:NameOfShareholderAxis"
+    unit: pure
+    decimals: 2
+    dimensional: true
+
+  shareholders[*].type_of_share:
+    tag: "in-gaap:TypeOfShare"
+    context_pattern: "Tab_D_CY_309_{idx}"
+    dimension: "in-gaap:NameOfShareholderAxis"
+    type: enum
+    dimensional: true
+
+  shareholders[*].country_of_residence:
+    tag: "in-ca:CountryOfIncorporationOrResidenceOfShareholder"
+    context_pattern: "Tab_D_CY_309_{idx}"
+    dimension: "in-gaap:NameOfShareholderAxis"
+    type: string
+    dimensional: true
+
+  # ─── DIRECTORS (Dimensional) ────────────────────────────────────────────────
+  directors[*].name:
+    tag: "in-ca:NameOfKeyManagerialPersonnelOrDirector"
+    context_pattern: "KeyManagerialPersonnelsAndDirectorsDomain_D_CY_{idx}"
+    dimension: "in-ca:KeyManagerialPersonnelsAndDirectorsAxis"
+    type: string
+    dimensional: true
+
+  directors[*].din:
+    tag: "in-ca:DirectorIdentificationNumberOfKeyManagerialPersonnelOrDirector"
+    context_pattern: "KeyManagerialPersonnelsAndDirectorsDomain_D_CY_{idx}"
+    dimension: "in-ca:KeyManagerialPersonnelsAndDirectorsAxis"
+    type: string
+    dimensional: true
+
+  directors[*].designation:
+    tag: "in-ca:DesignationOfKeyManagerialPersonnelOrDirector"
+    context_pattern: "KeyManagerialPersonnelsAndDirectorsDomain_D_CY_{idx}"
+    dimension: "in-ca:KeyManagerialPersonnelsAndDirectorsAxis"
+    type: enum
+    dimensional: true
+
+  # ─── SHARE CAPITAL CLASSES (Tab_*_198_* dimensional) ────────────────────────
+  share_capital.issued_subscribed_paidup.classes[*].number_of_shares_current_year:
+    tag: "in-gaap:NumberOfSharesOutstanding"
+    context_pattern: "Tab_I_CY_198_{idx}"
+    dimension: "in-gaap:ClassesOfShareCapitalAxis"
+    member_pattern: "in-gaap:EquityShares{idx}Member"   # or PreferenceShares
+    unit: shares
+    decimals: 0
+    dimensional: true
+
+  share_capital.issued_subscribed_paidup.classes[*].total_value_current_year:
+    tag: "in-gaap:ShareCapital"
+    context_pattern: "Tab_I_CY_198_{idx}"
+    dimension: "in-gaap:ClassesOfShareCapitalAxis"
+    member_pattern: "in-gaap:EquityShares{idx}Member"
+    unit: INR
+    decimals: 0
+    dimensional: true
+
+  # ─── PPE MOVEMENT SCHEDULE (PPE_* dimensional contexts) ─────────────────────
+  property_plant_equipment[*].opening_gross_block_current_year:
+    tag: "in-gaap:TangibleAssets"
+    context_pattern: "PPE_{idx}_I_PY_{detail_id}_Gross"
+    dimension: "in-gaap:SubClassesOfTangibleAssetsAxis"
+    member_lookup_by: asset_class
+    unit: INR
+    decimals: 0
+    dimensional: true
+
+  property_plant_equipment[*].depreciation_for_year:
+    tag: "in-gaap:DepreciationTangibleAssets"
+    context_pattern: "PPE_{idx}_D_CY_{detail_id}_Depreciation"
+    dimension: "in-gaap:SubClassesOfTangibleAssetsAxis"
+    member_lookup_by: asset_class
+    unit: INR
+    decimals: 0
+    dimensional: true
+
+  property_plant_equipment[*].useful_life_years:
+    tag: "in-gaap:UsefulLivesOrDepreciationRatesTangibleAssets"
+    context_pattern: "PPE_{idx}_D_CY_{detail_id}_Useful"
+    dimension: "in-gaap:SubClassesOfTangibleAssetsAxis"
+    member_lookup_by: asset_class
+    unit: pure
+    decimals: 0
+    dimensional: true
+
+  property_plant_equipment[*].depreciation_method:
+    tag: "in-gaap:DepreciationMethodTangibleAssets"
+    context_pattern: "PPE_{idx}_D_CY_{detail_id}_Method"
+    dimension: "in-gaap:SubClassesOfTangibleAssetsAxis"
+    member_lookup_by: asset_class
+    type: enum
+    dimensional: true
+
+  # ─── TEXT DISCLOSURES ───────────────────────────────────────────────────────
+  disclosures.employee_benefits:
+    tag: "in-gaap:DisclosureOfEmployeeBenefitsExplanatoryTextBlock"
+    context: D_CY
+    type: text_html
+
+  disclosures.related_party_transactions:
+    tag: "in-gaap:DisclosureOfRelatedPartyExplanatoryTextBlock"
+    context: D_CY
+    type: text_html
+
+  disclosures.significant_accounting_policies:
+    tag: "in-gaap:DisclosureOfSignificantAccountingPoliciesExplanatoryTextBlock"
+    context: D_CY
+    type: text_html
+
+  disclosures.contingent_liabilities:
+    tag: "in-gaap:DisclosureOfContingentLiabilitiesExplanatoryTextBlock"
+    context: D_CY
+    type: text_html
+
+# ─── MAPPING METADATA ─────────────────────────────────────────────────────────
+metadata:
+  total_simple_mappings: ~55
+  total_dimensional_patterns: ~12
+  coverage_estimate: "Covers ~95% of essential MCA filing requirements"
+  source_reference: "RAMSON_AND_GRANDSON_JEWELLERS_PRIVATE_LIMITED_STANDALONE_9085_VI_2022_23.xml"
+  notes:
+    - "Dimensional fields (shareholders, directors, PPE, share classes) expand to N facts based on array length"
+    - "Prior year mappings auto-mirror current year unless explicitly overridden"
+    - "context_pattern uses {idx} placeholder filled by generator (1-based index)"
+    - "PPE member mapping uses lookup table — see context_template.yml > dimensional_contexts.property_plant_equipment"

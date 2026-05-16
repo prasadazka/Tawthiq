@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes.rules import router as rules_router
 from app.routes.validate import router as validate_router
+from app.routes.xbrl_india import router as xbrl_india_router
 
 app = FastAPI(title="Tawthiq API", version="0.1.0")
 
@@ -20,6 +21,7 @@ app.add_middleware(
 
 app.include_router(rules_router)
 app.include_router(validate_router)
+app.include_router(xbrl_india_router)
 
 
 @app.get("/api/health")

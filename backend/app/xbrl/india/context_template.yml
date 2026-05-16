@@ -1,0 +1,146 @@
+# Indian XBRL — Context, Units, and Schema Configuration
+# Verified from: RAMSON_AND_GRANDSON_JEWELLERS_PRIVATE_LIMITED_STANDALONE_9085_VI_2022_23.xml
+# Taxonomy: ICAI in-gaap / in-ca, dated 2016-03-31
+
+# ─── XML Envelope ─────────────────────────────────────────────────────────────
+encoding: utf-16
+
+# Generator stamp (XML comment on line 2 of output)
+generator_comment: "XBRL Instance Document Created From Tawthiq XBRL Engine"
+
+# Schema reference — MCA-hosted entry point for Commercial & Industrial entities
+schema_ref: "http://www.mca.gov.in/XBRL/2016/07/26/Taxonomy/CnI/in-ci-ent-2016-03-31.xsd"
+
+# Root element
+root_element: "xbrli:xbrl"
+
+# ─── Namespace Declarations ───────────────────────────────────────────────────
+# All 18 namespaces emitted by C2X-style XBRL output
+namespaces:
+  in-gaap:        "http://www.icai.org/xbrl/taxonomy/2016-03-31/in-gaap"
+  in-ca:          "http://www.icai.org/xbrl/taxonomy/2016-03-31/in-ca"
+  in-ca-ent:      "http://www.icai.org/xbrl/taxonomy/2016-03-31/in-ca/in-ca-ent"
+  in-ca-types:    "http://www.icai.org/xbrl/taxonomy/2016-03-31/in-ca-types"
+  in-ca-roles:    "http://www.icai.org/xbrl/taxonomy/2016-03-31/in-ca-roles"
+  in-gaap-roles:  "http://www.icai.org/xbrl/taxonomy/2016-03-31/in-gaap-roles"
+  in-ci-ent:      "http://www.icai.org/xbrl/taxonomy/2016-03-31/in-gaap/in-ci-ent"
+  xbrli:          "http://www.xbrl.org/2003/instance"
+  xbrldi:         "http://xbrl.org/2006/xbrldi"
+  xbrldt:         "http://xbrl.org/2005/xbrldt"
+  link:           "http://www.xbrl.org/2003/linkbase"
+  xlink:          "http://www.w3.org/1999/xlink"
+  xl:             "http://www.xbrl.org/2003/XLink"
+  xsi:            "http://www.w3.org/2001/XMLSchema-instance"
+  ref:            "http://www.xbrl.org/2006/ref"
+  num:            "http://www.xbrl.org/dtr/type/numeric"
+  nonnum:         "http://www.xbrl.org/dtr/type/non-numeric"
+  iso4217:        "http://www.xbrl.org/2003/iso4217"
+  negated:        "http://www.xbrl.org/2009/role/negated"
+  net:            "http://www.xbrl.org/2009/role/net"
+
+# ─── Entity Identifier ────────────────────────────────────────────────────────
+entity:
+  scheme: "http://www.mca.gov.in/CIN"
+  # Identifier value comes from extracted data: company.cin
+  identifier_source: "company.cin"
+
+# ─── Standard Contexts (5) ────────────────────────────────────────────────────
+# These cover ~80% of facts. Dimensional contexts are built dynamically.
+contexts:
+  D_CY:
+    description: "Duration — Current Year"
+    type: duration
+    start_date_source: "reporting_period.start_date"      # e.g., 2022-04-01
+    end_date_source: "reporting_period.end_date"          # e.g., 2023-03-31
+
+  I_CY:
+    description: "Instant — Current Year balance sheet date"
+    type: instant
+    date_source: "reporting_period.end_date"              # e.g., 2023-03-31
+
+  D_PY:
+    description: "Duration — Prior Year"
+    type: duration
+    start_date_source: "reporting_period.prior_year_start"  # e.g., 2021-04-01
+    end_date_source: "reporting_period.prior_year_end"      # e.g., 2022-03-31
+
+  I_PY:
+    description: "Instant — Prior Year balance sheet date"
+    type: instant
+    date_source: "reporting_period.prior_year_end"        # e.g., 2022-03-31
+
+  I_PPY:
+    description: "Instant — Prior-Prior Year (opening balance)"
+    type: instant
+    date_source: "reporting_period.prior_prior_year_end"  # e.g., 2021-03-31
+
+# ─── Units ────────────────────────────────────────────────────────────────────
+units:
+  INR:
+    measure: "iso4217:INR"
+    description: "Indian Rupees (monetary)"
+  shares:
+    measure: "xbrli:shares"
+    description: "Number of shares"
+  pure:
+    measure: "xbrli:pure"
+    description: "Dimensionless (percentages, ratios)"
+  INRPerShare:
+    measure: "iso4217:INR"   # Note: same measure as INR; distinction is contextual
+    description: "INR per share (EPS)"
+
+# ─── Decimals Convention ──────────────────────────────────────────────────────
+decimals:
+  monetary_integer: 0    # Rupee amounts (no fractions)
+  monetary_decimal: 2    # Per-share values, ratios
+  share_count: 0         # Whole shares only
+
+# ─── Dimensional Context Patterns (advanced) ─────────────────────────────────
+# Used when a single fact needs to be repeated across categories
+# (e.g., share classes, property categories, multiple auditors)
+dimensional_contexts:
+  shareholders:
+    # Pattern: Tab_{D|I}_{CY|PY|PPY}_{role_id}_{row_idx}
+    id_pattern: "Tab_{type}_{period}_309_{idx}"
+    dimension: "in-gaap:NameOfShareholderAxis"
+    member_type: typed   # typed = open list, explicit = closed list
+
+  share_classes:
+    id_pattern: "Tab_{type}_{period}_198_{idx}"
+    dimension: "in-gaap:ClassesOfShareCapitalAxis"
+    member_type: explicit
+    members:
+      - "in-gaap:EquityShares1Member"
+      - "in-gaap:PreferenceShares1Member"
+
+  property_plant_equipment:
+    id_pattern: "PPE_{idx}_{type}_{period}_{detail}"
+    dimension: "in-gaap:SubClassesOfTangibleAssetsAxis"
+    member_type: explicit
+    members:
+      - "in-gaap:OwnedAssetsTangibleAssetsLandMember"
+      - "in-gaap:OwnedAssetsTangibleAssetsBuildingsMember"
+      - "in-gaap:OwnedAssetsTangibleAssetsFurnitureAndFixturesMember"
+      - "in-gaap:OwnedAssetsTangibleAssetsVehiclesMember"
+      - "in-gaap:OwnedAssetsTangibleAssetsOfficeEquipmentMember"
+      - "in-gaap:OwnedAssetsTangibleAssetsComputerEquipmentsMember"
+      - "in-gaap:OwnedAssetsTangibleAssetsPlantAndEquipmentMember"
+
+  auditors:
+    id_pattern: "AuditorsDomain_{type}_{period}_3066_1_{idx}"
+    dimension: "in-ca:AuditorsAxis"
+    member_type: typed
+
+  directors_signing:
+    id_pattern: "DirectorsSigningFinancialStatementsDomain_{type}_{period}_{idx}"
+    dimension: "in-ca:DirectorsSigningFinancialStatementsAxis"
+    member_type: typed
+
+# ─── File Naming Convention ───────────────────────────────────────────────────
+# Pattern: {COMPANY_NAME}_{TYPE}_{NUMBER}_{VERSION}_{FY}.xml
+filename_template: "{company_name_upper_underscore}_{filing_type}_{srn}_{form_version}_{fy_short}.xml"
+
+# Defaults for unknown segments
+defaults:
+  filing_type: "STANDALONE"   # or "CONSOLIDATED"
+  form_version: "VI"          # Form V6 (assumed — needs MCA confirmation per filing)

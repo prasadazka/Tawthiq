@@ -1,0 +1,371 @@
+# Indian XBRL — Extraction Schema
+# Defines the JSON structure Gemini must produce after reading the PDF.
+# Each field has: type, required, description, example
+# All examples below are taken from the verified Ramson Jewellers sample.
+
+schema_version: "1.0"
+country: india
+filing_type: "MCA / Companies Act"
+
+# ─── COMPANY METADATA ─────────────────────────────────────────────────────────
+company:
+  name:
+    type: string
+    required: true
+    description: "Full legal name of the company as it appears in the filing"
+    example: "RAMSON AND GRANDSON JEWELLERS PRIVATE LIMITED"
+
+  cin:
+    type: string
+    required: true
+    pattern: "^[ULC]\\d{5}[A-Z]{2}\\d{4}[A-Z]{3}\\d{6}$"
+    description: "Corporate Identification Number (21 chars). U/L/C + 5-digit NIC + 2-letter state + 4-digit year + 3-letter entity type + 6-digit ROC seq"
+    example: "U52393TG2011PTC072492"
+
+  pan:
+    type: string
+    required: false
+    pattern: "^[A-Z]{5}\\d{4}[A-Z]$"
+    description: "Permanent Account Number of the company (10 chars)"
+    example: "ABCDE1234F"
+
+  registered_address:
+    type: string
+    required: true
+    description: "Full registered office address"
+    example: "5-9-43/5 & 6, BASHEERBAGH, HYDERABAD TG 500063 IN"
+
+  state:
+    type: string
+    required: true
+    description: "State / Union Territory of registered office"
+    example: "Telangana"
+
+  industry_type:
+    type: enum
+    required: true
+    description: "MCA industry classification"
+    enum:
+      - "Commercial and Industrial"
+      - "Banking"
+      - "NBFC"
+      - "Insurance"
+      - "Power"
+    example: "Commercial and Industrial"
+
+  company_type:
+    type: enum
+    required: true
+    enum:
+      - "Private Limited"
+      - "Public Limited"
+      - "One Person Company"
+      - "Section 8 Company"
+    example: "Private Limited"
+
+  incorporation_date:
+    type: date
+    required: false
+    format: "YYYY-MM-DD"
+    description: "Date of incorporation"
+
+  email:
+    type: string
+    required: false
+    example: "info@company.com"
+
+  telephone:
+    type: string
+    required: false
+
+  website:
+    type: string
+    required: false
+
+# ─── REPORTING PERIOD ─────────────────────────────────────────────────────────
+reporting_period:
+  type:
+    type: enum
+    required: true
+    enum: ["annual", "half-yearly", "quarterly"]
+    example: "annual"
+
+  start_date:
+    type: date
+    required: true
+    format: "YYYY-MM-DD"
+    description: "Current FY start date (typically April 1)"
+    example: "2022-04-01"
+
+  end_date:
+    type: date
+    required: true
+    format: "YYYY-MM-DD"
+    description: "Current FY end date (typically March 31)"
+    example: "2023-03-31"
+
+  prior_year_start:
+    type: date
+    required: true
+    format: "YYYY-MM-DD"
+    example: "2021-04-01"
+
+  prior_year_end:
+    type: date
+    required: true
+    format: "YYYY-MM-DD"
+    example: "2022-03-31"
+
+  prior_prior_year_end:
+    type: date
+    required: false
+    format: "YYYY-MM-DD"
+    description: "Required for Statement of Changes in Equity opening balance"
+    example: "2021-03-31"
+
+  report_type:
+    type: enum
+    required: true
+    enum: ["Standalone", "Consolidated"]
+    example: "Standalone"
+
+  level_of_rounding:
+    type: enum
+    required: true
+    enum: ["Actual", "Thousands", "Lakhs", "Millions", "Crores"]
+    description: "How figures are presented in the source document"
+    example: "Actual"
+
+  cash_flow_method:
+    type: enum
+    required: false
+    enum: ["Direct Method", "Indirect Method"]
+    example: "Indirect Method"
+
+# ─── BALANCE SHEET ────────────────────────────────────────────────────────────
+balance_sheet:
+  current_year:    # Use I_CY context
+    equity_and_liabilities:
+      share_capital: { type: number, required: true, example: 1300000 }
+      reserves_and_surplus: { type: number, required: true, example: 31211109 }
+      money_received_against_share_warrants: { type: number, required: false }
+      non_current_liabilities:
+        long_term_borrowings: { type: number, required: false, example: 17103345 }
+        deferred_tax_liabilities: { type: number, required: false }
+        other_long_term_liabilities: { type: number, required: false }
+        long_term_provisions: { type: number, required: false }
+      current_liabilities:
+        short_term_borrowings: { type: number, required: false, example: 0 }
+        trade_payables: { type: number, required: false, example: 52369179 }
+        other_current_liabilities: { type: number, required: false, example: 6162862 }
+        short_term_provisions: { type: number, required: false }
+      total_equity_and_liabilities: { type: number, required: true, example: 108146495 }
+
+    assets:
+      non_current_assets:
+        tangible_assets: { type: number, required: false, example: 817651 }
+        intangible_assets: { type: number, required: false }
+        capital_work_in_progress: { type: number, required: false }
+        non_current_investments: { type: number, required: false }
+        deferred_tax_assets: { type: number, required: false, example: 80859 }
+        long_term_loans_and_advances: { type: number, required: false }
+        other_non_current_assets: { type: number, required: false }
+      current_assets:
+        current_investments: { type: number, required: false }
+        inventories: { type: number, required: false, example: 85840063 }
+        trade_receivables: { type: number, required: false, example: 516458 }
+        cash_and_bank_balances: { type: number, required: false, example: 496809 }
+        short_term_loans_and_advances: { type: number, required: false, example: 0 }
+        other_current_assets: { type: number, required: false }
+      total_assets: { type: number, required: true, example: 108146495 }
+
+  prior_year:    # Same structure, uses I_PY context
+    # ... (same fields as current_year)
+    total_assets: { type: number, required: true, example: 111807332 }
+
+# ─── PROFIT & LOSS ────────────────────────────────────────────────────────────
+profit_loss:
+  current_year:    # Uses D_CY context
+    revenue_from_operations: { type: number, required: true, example: 17361062504 }
+    other_income: { type: number, required: false, example: 875238 }
+    total_revenue: { type: number, required: true, example: 17361937742 }
+
+    expenses:
+      cost_of_materials_consumed: { type: number, required: false, example: 0 }
+      purchases_of_stock_in_trade: { type: number, required: false, example: 17352661379 }
+      changes_in_inventories: { type: number, required: false, example: -4412941 }
+      employee_benefits_expense: { type: number, required: false, example: 3404260 }
+      finance_costs: { type: number, required: false, example: 0 }
+      depreciation_amortisation: { type: number, required: false, example: 170522 }
+      other_expenses: { type: number, required: false, example: 1693184 }
+      total_expenses: { type: number, required: true, example: 17353516404 }
+
+    profit_before_tax: { type: number, required: true, example: 8421338 }
+    tax_expense:
+      current_tax: { type: number, required: false }
+      deferred_tax: { type: number, required: false }
+      total_tax_expense: { type: number, required: false, example: 2217433 }
+    profit_for_period: { type: number, required: true, example: 6203905 }
+
+    earnings_per_share:
+      basic: { type: number, required: false, decimals: 2 }
+      diluted: { type: number, required: false, decimals: 2 }
+
+  prior_year:
+    # ... (same structure)
+    profit_for_period: { type: number, required: true, example: 6283890 }
+
+# ─── CASH FLOW STATEMENT ──────────────────────────────────────────────────────
+cash_flow:
+  current_year:
+    cash_from_operating_activities: { type: number, required: true }
+    cash_from_investing_activities: { type: number, required: true }
+    cash_from_financing_activities: { type: number, required: true }
+    net_increase_decrease_in_cash: { type: number, required: true }
+    cash_at_beginning_of_period: { type: number, required: true }
+    cash_at_end_of_period: { type: number, required: true }
+  prior_year: { }  # Same structure
+
+# ─── AUDITOR INFORMATION ──────────────────────────────────────────────────────
+auditor:
+  firm_name:
+    type: string
+    required: true
+    example: "OMN & Associates"
+
+  firm_registration_number:
+    type: string
+    required: false
+    description: "ICAI FRN"
+    example: "012345S"
+
+  partner_name:
+    type: string
+    required: true
+    example: "Om Prakash Bung"
+
+  membership_number:
+    type: string
+    required: true
+    example: "208088"
+
+  address:
+    type: string
+    required: true
+    example: "102, 1ST FLOOR, LAXMI ARCADE, VITTALWADI X ROAD, NARAYANAGUDA, HYDERABAD, Telangana-TG, 500029"
+
+  signature_date:
+    type: date
+    required: true
+    format: "YYYY-MM-DD"
+    example: "2023-09-21"
+
+  opinion_type:
+    type: enum
+    required: true
+    enum: ["Unqualified", "Qualified", "Adverse", "Disclaimer"]
+
+# ─── DIRECTORS ────────────────────────────────────────────────────────────────
+directors:
+  type: array
+  description: "List of directors and key managerial personnel"
+  items:
+    name: { type: string, required: true }
+    din: { type: string, required: true, example: "03363685", description: "Director Identification Number (8 digits)" }
+    designation: { type: enum, required: true, enum: ["Chairman", "Managing Director", "Director", "CEO", "CFO", "Company Secretary"] }
+    signs_financial_statements: { type: boolean, required: false }
+    signs_board_report: { type: boolean, required: false }
+
+# ─── SHAREHOLDERS ─────────────────────────────────────────────────────────────
+shareholders:
+  type: array
+  description: "Shareholders holding 5% or more (required disclosure)"
+  items:
+    name: { type: string, required: true, example: "Aruna Guggila" }
+    pan: { type: string, required: false, pattern: "^[A-Z]{5}\\d{4}[A-Z]$" }
+    shares_held: { type: number, required: true, example: 32000 }
+    percentage_held: { type: number, required: true, decimals: 2, example: 24.62 }
+    type_of_share: { type: enum, required: true, enum: ["Equity", "Preference"] }
+    country_of_residence: { type: string, required: false, example: "India" }
+
+# ─── SHARE CAPITAL DETAILS ────────────────────────────────────────────────────
+share_capital:
+  authorized:
+    classes:
+      type: array
+      items:
+        class_name: { type: string, example: "Equity Shares" }
+        face_value: { type: number, example: 10 }
+        number_of_shares: { type: number, example: 500000 }
+        total_value: { type: number, example: 5000000 }
+
+  issued_subscribed_paidup:
+    classes:
+      type: array
+      items:
+        class_name: { type: string }
+        face_value: { type: number }
+        number_of_shares_current_year: { type: number, example: 130000 }
+        number_of_shares_prior_year: { type: number, example: 130000 }
+        total_value_current_year: { type: number, example: 1300000 }
+        total_value_prior_year: { type: number, example: 1300000 }
+
+# ─── PROPERTY, PLANT & EQUIPMENT (PPE) ───────────────────────────────────────
+property_plant_equipment:
+  type: array
+  description: "PPE movement schedule by asset class"
+  items:
+    asset_class:
+      type: enum
+      enum: ["Land", "Buildings", "Furniture and Fixtures", "Vehicles", "Office Equipment", "Computer Equipment", "Plant and Equipment"]
+    opening_gross_block_prior_year: { type: number }
+    additions_during_prior_year: { type: number }
+    disposals_during_prior_year: { type: number }
+    closing_gross_block_prior_year: { type: number }
+    opening_gross_block_current_year: { type: number }
+    additions_during_current_year: { type: number }
+    disposals_during_current_year: { type: number }
+    closing_gross_block_current_year: { type: number }
+    accumulated_depreciation_opening: { type: number }
+    depreciation_for_year: { type: number }
+    accumulated_depreciation_closing: { type: number }
+    net_carrying_amount_current_year: { type: number }
+    net_carrying_amount_prior_year: { type: number }
+    useful_life_years: { type: number }
+    depreciation_method: { type: enum, enum: ["Straight Line", "Written Down Value"] }
+
+# ─── BOARD APPROVAL ───────────────────────────────────────────────────────────
+board_approval:
+  date_of_board_meeting:
+    type: date
+    required: true
+    format: "YYYY-MM-DD"
+    example: "2023-09-21"
+
+  date_of_signing_balance_sheet:
+    type: date
+    required: true
+    format: "YYYY-MM-DD"
+    example: "2023-09-21"
+
+# ─── DISCLOSURES (Text blocks) ────────────────────────────────────────────────
+disclosures:
+  significant_accounting_policies:
+    type: text_html
+    required: false
+
+  employee_benefits:
+    type: text_html
+    required: false
+
+  related_party_transactions:
+    type: text_html
+    required: false
+
+  contingent_liabilities:
+    type: text_html
+    required: false
+
+  csr_activities:
+    type: text_html
+    required: false
