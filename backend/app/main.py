@@ -11,6 +11,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "https://tawthiq-frontend-pn5c6ojp4a-uc.a.run.app",
+        "https://tawthiq-frontend-273154047321.us-central1.run.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
