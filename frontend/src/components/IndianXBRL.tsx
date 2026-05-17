@@ -383,16 +383,28 @@ function ValidationView({
 
       {/* All rules list */}
       <div className="xbrl-rules-list">
-        <h4>All Validation Rules</h4>
-        {report.rules.map((r) => (
-          <div className={`xbrl-rule-item rule-${r.status}`} key={r.rule_id}>
-            <span className={`rule-indicator ind-${r.status === "pass" ? "pass" : r.status === "fail" ? "fail" : "skip"}`} />
-            <span className="rule-id">{r.rule_id}</span>
-            <span className="rule-name">{r.name}</span>
-            <span className={`rule-badge badge-${r.severity}`}>{r.severity}</span>
-            {r.status === "fail" && <p className="rule-msg">{r.message}</p>}
-          </div>
-        ))}
+        <h4>
+          All Validation Rules
+          <span className="rules-list-stats">
+            <span className="stat-chip stat-chip-pass">{report.summary.pass} pass</span>
+            <span className="stat-chip stat-chip-fail">{report.summary.fail} fail</span>
+            {report.summary.skip > 0 && <span className="stat-chip stat-chip-skip">{report.summary.skip} skip</span>}
+          </span>
+        </h4>
+        {report.rules.map((r) => {
+          const statusLabel = r.status === "pass" ? "PASS" : r.status === "fail" ? "FAIL" : "SKIP";
+          return (
+            <div className={`xbrl-rule-item rule-${r.status}`} key={r.rule_id}>
+              <span className={`status-badge status-${r.status}`}>{statusLabel}</span>
+              <span className="rule-id">{r.rule_id}</span>
+              <span className="rule-name">{r.name}</span>
+              {r.status === "fail" && (
+                <span className={`severity-tag sev-${r.severity}`}>{r.severity}</span>
+              )}
+              {r.status === "fail" && r.message && <p className="rule-msg">{r.message}</p>}
+            </div>
+          );
+        })}
       </div>
 
       {/* Generate button */}

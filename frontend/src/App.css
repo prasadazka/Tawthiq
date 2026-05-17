@@ -1261,9 +1261,35 @@
   color: var(--heading);
 }
 
+.xbrl-rules-list h4 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rules-list-stats {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.stat-chip {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 10px;
+  letter-spacing: 0.3px;
+}
+
+.stat-chip-pass { background: #ecfdf5; color: #047857; }
+.stat-chip-fail { background: #fef2f2; color: #b91c1c; }
+.stat-chip-skip { background: #f3f4f6; color: #6b7280; }
+
 .xbrl-rule-item {
   display: grid;
-  grid-template-columns: 12px 70px 1fr auto;
+  grid-template-columns: 58px 70px 1fr auto;
   gap: 10px;
   align-items: center;
   padding: 8px 12px;
@@ -1286,25 +1312,47 @@
 }
 
 .xbrl-rule-item .rule-msg {
-  grid-column: 2 / 4;
+  grid-column: 2 / 5;
   margin: 4px 0 0 0;
   color: #991b1b;
   font-size: 0.74rem;
   line-height: 1.4;
 }
 
-.xbrl-rule-item .rule-badge {
+/* Primary status badge — PASS / FAIL / SKIP — the headline indicator */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--mono);
-  font-size: 0.62rem;
+  font-size: 0.66rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
-  padding: 2px 6px;
+  letter-spacing: 0.5px;
+  padding: 4px 0;
   border-radius: 4px;
+  width: 52px;
 }
 
-.badge-error { background: #fef2f2; color: #dc2626; }
-.badge-warning { background: #fffbeb; color: #d97706; }
-.badge-info { background: #eff6ff; color: #3b82f6; }
+.status-pass { background: #d1fae5; color: #047857; }
+.status-fail { background: #fee2e2; color: #b91c1c; }
+.status-skip { background: #e5e7eb; color: #6b7280; }
+
+/* Severity tag — only shown for failed rules, secondary information */
+.severity-tag {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  opacity: 0.85;
+}
+
+.sev-error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.sev-warning { background: #fffbeb; color: #d97706; border: 1px solid #fed7aa; }
+.sev-info { background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; }
 
 .xbrl-generate-cta {
   display: flex;
