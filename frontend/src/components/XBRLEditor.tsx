@@ -158,60 +158,84 @@ export default function XBRLEditor({
     }));
   }, [mcaReport]);
 
-  // Pull the first concrete tag name from a hint like "in-gaap:Assets / in-gaap:Equity"
-  // or "xbrli:identifier scheme=..." → returns null for non-insertable hints (multi-tag,
-  // identifier, etc.) and the user is asked to jump manually.
-  const extractInsertableTag = (rawTag: string): string | null => {
-    if (rawTag.includes("/")) return null;            // multi-tag hints — too ambiguous
-    if (rawTag.startsWith("xbrli:")) return null;     // entity/identifier — not a fact
-    const tag = rawTag.split(" ")[0];                 // drop attribute hints
-    if (!tag.includes(":")) return null;              // missing namespace
-    return tag;
+  // Parse a hint string into one or more individual tag names.
+  // Handles:
+  //   "in-gaap:Assets"                                          → ["in-gaap:Assets"]
+  //   "in-gaap:Assets / in-gaap:Equity / in-gaap:Liabilities"  → 3 tags
+  //   "xbrli:identifier scheme=..."                             → ["xbrli:identifier"]
+  const parseTagList = (rawTag: string): string[] => {
+    return rawTag
+      .split("/")
+      .map((part) => part.trim().split(" ")[0])
+      .filter((t) => t.includes(":"));
   };
 
-  // For a given hint, find the first matching tag+context in the XML.
-  // Returns the 1-indexed line number if found, else 0.
-  const findExistingTagLine = (rawTag: string, context: string): number => {
-    const tag = extractInsertableTag(rawTag);
-    if (!tag) return 0;
-    const escTag = tag.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+  // Whether we can SAFELY auto-insert a tag for this hint (single, non-structural)
+  const isInsertableHint = (rawTag: string): boolean => {
+    const tags = parseTagList(rawTag);
+    if (tags.length !== 1) return false;
+    if (tags[0].startsWith("xbrli:")) return false;   // entity/identifier — not a fact
+    return true;
+  };
+
+  // Find the first line in the XML matching ANY tag from the hint (optionally
+  // constrained to a contextRef). Returns 0 if none found.
+  const findHintInXml = (rawTag: string, context: string): { line: number; tag: string } => {
+    const tags = parseTagList(rawTag);
     const escCtx = context.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
-    const re = new RegExp(`<${escTag}\\b[^>]*contextRef="${escCtx}"`);
-    const m = re.exec(xml);
-    if (!m) return 0;
-    return xml.slice(0, m.index).split("\n").length;
+    for (const tag of tags) {
+      const escTag = tag.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+      // First try with matching contextRef
+      let re = new RegExp(`<${escTag}\\b[^>]*contextRef="${escCtx}"`);
+      let m = re.exec(xml);
+      // Fall back: just find the tag anywhere (useful for xbrli:identifier
+      // which has no contextRef itself — it's inside <xbrli:entity>)
+      if (!m) {
+        re = new RegExp(`<${escTag}\\b`);
+        m = re.exec(xml);
+      }
+      if (m) {
+        return { line: xml.slice(0, m.index).split("\n").length, tag };
+      }
+    }
+    return { line: 0, tag: "" };
   };
 
-  const insertPlaceholderTag = (hint: { tag: string; context: string }) => {
+  // Backwards-compatible name used in the JSX render below
+  const findExistingTagLine = (rawTag: string, context: string): number =>
+    findHintInXml(rawTag, context).line;
+
+  const extractInsertableTag = (rawTag: string): string | null =>
+    isInsertableHint(rawTag) ? parseTagList(rawTag)[0] : null;
+
+  const handleGapClick = (hint: { tag: string; context: string }) => {
     const ta = textareaRef.current;
     if (!ta) return;
 
-    // 1. If a matching tag already exists in the XML, jump to it instead of duplicating
-    const existingLine = findExistingTagLine(hint.tag, hint.context);
-    if (existingLine > 0) {
-      jumpToLine(existingLine);
+    // 1. If any matching tag is already in the XML, jump to it
+    const found = findHintInXml(hint.tag, hint.context);
+    if (found.line > 0) {
+      jumpToLine(found.line);
       return;
     }
 
-    // 2. Build a single-tag placeholder. Skip if the hint isn't unambiguous.
-    const tagOnly = extractInsertableTag(hint.tag);
-    if (!tagOnly) {
-      // Multi-tag or special — just inform the user.
+    // 2. Single insertable tag missing → add a placeholder at end of document
+    if (!isInsertableHint(hint.tag)) {
+      // Truly nothing to insert (e.g., xbrli:identifier missing entirely → file is broken)
       window.alert(
-        `This rule covers multiple tags (${hint.tag}). ` +
-        `Locate them in the XML and fill values manually.`
+        `Could not locate any of these tags in the XML: ${hint.tag}. ` +
+        `The XML may be malformed — check the Issues tab.`
       );
       return;
     }
+    const tagOnly = parseTagList(hint.tag)[0];
 
     const snippet = `\n    <${tagOnly} contextRef="${hint.context}">FILL_VALUE_HERE</${tagOnly}>`;
-    // Insert before the closing </xbrli:xbrl> so we don't break the document
     const closeIdx = xml.lastIndexOf("</xbrli:xbrl>");
     const insertAt = closeIdx > 0 ? closeIdx : xml.length;
     const newXml = xml.slice(0, insertAt) + snippet + "\n" + xml.slice(insertAt);
     setXml(newXml);
 
-    // Highlight the placeholder so the user can immediately type the value
     const placeholderPos = insertAt + snippet.indexOf("FILL_VALUE_HERE");
     window.setTimeout(() => {
       ta.focus();
@@ -224,6 +248,9 @@ export default function XBRLEditor({
       window.setTimeout(() => setFlashLine(null), 1500);
     }, 50);
   };
+
+  // Keep the old name as an alias so the render code below doesn't change.
+  const insertPlaceholderTag = handleGapClick;
 
   return (
     <div className="xbrl-editor">
