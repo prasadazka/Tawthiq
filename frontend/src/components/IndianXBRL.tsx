@@ -20,8 +20,16 @@ interface GeneratedFile {
   xmlText: string;   // decoded UTF-16 text for editor
 }
 
-export default function IndianXBRL() {
-  const [stage, setStage] = useState<Stage>("idle");
+interface IndianXBRLProps {
+  onStageChange?: (stage: Stage) => void;
+}
+
+export default function IndianXBRL({ onStageChange }: IndianXBRLProps = {}) {
+  const [stage, _setStage] = useState<Stage>("idle");
+  const setStage = (s: Stage) => {
+    _setStage(s);
+    onStageChange?.(s);
+  };
   const [fileName, setFileName] = useState("");
   const [fileSize, setFileSize] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);

@@ -7,10 +7,12 @@ import "./App.css";
 
 type AppState = "idle" | "validating" | "done" | "error";
 type TabKey = "saudi" | "indian";
+type IndianStage = "idle" | "extracting" | "validated" | "generating" | "blocked" | "editing" | "error";
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("saudi");
   const [state, setState] = useState<AppState>("idle");
+  const [indianStage, setIndianStage] = useState<IndianStage>("idle");
   const [result, setResult] = useState<ValidationResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
@@ -54,11 +56,19 @@ function App() {
   };
 
   const handleTabSwitch = (tab: TabKey) => {
+    // Do NOT call handleReset() — each tab preserves its own state independently
     setActiveTab(tab);
-    handleReset();
   };
 
   const isSaudiResultsMode = activeTab === "saudi" && state === "done";
+
+  // While the user is inside a "committed" flow on either tab — viewing Saudi
+  // results, or anywhere past the upload step in the Indian flow — hide the
+  // OTHER tab button so they can't accidentally switch and lose their work.
+  const saudiCommitted = state === "validating" || state === "done";
+  const indianCommitted = indianStage !== "idle" && indianStage !== "error";
+  const hideSaudiTab = activeTab === "indian" && indianCommitted;
+  const hideIndianTab = activeTab === "saudi" && saudiCommitted;
 
   return (
     <div className={`app ${isSaudiResultsMode ? "app-viewer-mode" : ""}`}>
@@ -72,20 +82,24 @@ function App() {
           <span>Tawtheeq</span>
         </div>
         <div className="nav-tabs">
-          <button
-            type="button"
-            className={`nav-tab ${activeTab === "saudi" ? "nav-tab-active" : ""}`}
-            onClick={() => handleTabSwitch("saudi")}
-          >
-            Saudi PDF Validation
-          </button>
-          <button
-            type="button"
-            className={`nav-tab ${activeTab === "indian" ? "nav-tab-active" : ""}`}
-            onClick={() => handleTabSwitch("indian")}
-          >
-            Indian XBRL Generation
-          </button>
+          {!hideSaudiTab && (
+            <button
+              type="button"
+              className={`nav-tab ${activeTab === "saudi" ? "nav-tab-active" : ""}`}
+              onClick={() => handleTabSwitch("saudi")}
+            >
+              Saudi PDF Validation
+            </button>
+          )}
+          {!hideIndianTab && (
+            <button
+              type="button"
+              className={`nav-tab ${activeTab === "indian" ? "nav-tab-active" : ""}`}
+              onClick={() => handleTabSwitch("indian")}
+            >
+              Indian XBRL Generation
+            </button>
+          )}
         </div>
         {isSaudiResultsMode && (
           <button type="button" className="btn btn-outline btn-sm" onClick={handleReset}>
@@ -210,7 +224,7 @@ function App() {
       {activeTab === "indian" && (
         <>
           <main className="main">
-            <IndianXBRL />
+            <IndianXBRL onStageChange={setIndianStage} />
           </main>
           <footer className="footer">
             <p>Tawtheeq &middot; Indian XBRL Generator (ICAI Taxonomy 2016-03-31)</p>
