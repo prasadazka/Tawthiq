@@ -84,7 +84,9 @@ CRITICAL RULES:
 
 WHERE TO FIND CRITICAL FIELDS — SEARCH EVERY PAGE:
 
-CIN (Corporate Identification Number, 21 characters, format like U52393TG2011PTC072492):
+CIN (Corporate Identification Number, 21-character MCA identifier):
+- Format: [U|L|C] + 5-digit industry code + 2-letter state code + 4-digit year + [PTC|PLC|GOI|...] + 6-digit sequence
+- Example shape only (do NOT return this value): U#####XX####XXX######
 - Look on the cover page or first page of the document
 - Look in the auditor's report header/letterhead (often appears alongside the company name)
 - Look in Note 1 "Corporate Information" or "Organisation and Activities"
@@ -108,8 +110,8 @@ DIRECTORS — STRICT RULES (very important to avoid false directors):
   do NOT add other names from elsewhere in the document.
 - Each director MUST have an 8-digit DIN. If you cannot find a DIN near a director's name,
   do NOT include that person in the directors array.
-- DIN format: exactly 8 numeric digits (e.g., 03363685, 00112233). Often labelled "DIN:" or
-  "(DIN-12345678)" near the director's printed name in the signature block.
+- DIN format: exactly 8 numeric digits. Often labelled "DIN:" or "(DIN-########)"
+  near the director's printed name in the signature block.
 
 INDUSTRY TYPE — MUST MAP business description to one of these MCA classifications:
 - "Commercial and Industrial" → Use for ALL trading, retail, manufacturing, services, jewellery,
@@ -169,27 +171,31 @@ Return ONLY the populated JSON object now.
         return json.dumps(skeleton, indent=2, ensure_ascii=False)
 
     def _field_to_example(self, node: Any) -> Any:
-        """Recursively turn schema nodes into example values for the prompt."""
+        """Recursively turn schema nodes into NEUTRAL type-shaped placeholders.
+
+        We deliberately IGNORE the `example:` field from the YAML — those examples
+        are documentation only. Including real values in the prompt would bias
+        Gemini toward those values for any uploaded PDF. The placeholders here
+        only convey TYPE and SHAPE.
+        """
         if not isinstance(node, dict):
             return node
 
         # Leaf field with type info
         if "type" in node and not any(isinstance(v, dict) for v in node.values()):
             t = node.get("type")
-            ex = node.get("example")
-            if ex is not None:
-                return ex
+            # NOTE: 'example' from YAML is intentionally NOT used here — bias risk.
             if t == "string":
-                return "string"
+                return "<string from PDF>"
             if t == "number":
-                return 0
+                return "<number>"
             if t == "date":
-                return "YYYY-MM-DD"
+                return "<YYYY-MM-DD>"
             if t == "boolean":
-                return False
+                return "<true/false>"
             if t == "enum":
                 allowed = node.get("enum", [])
-                return f"one of: {allowed}"
+                return f"<one of: {allowed}>"
             if t == "array":
                 return []
             return None
@@ -198,7 +204,7 @@ Return ONLY the populated JSON object now.
         if node.get("type") == "array" and "items" in node:
             return [self._field_to_example(node["items"])]
 
-        # Nested object
+        # Nested object — recurse, skip metadata keys
         out: dict = {}
         for key, sub in node.items():
             if key in {"type", "required", "description", "example", "enum", "pattern", "format", "decimals"}:
