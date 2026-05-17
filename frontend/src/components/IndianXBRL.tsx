@@ -220,6 +220,8 @@ export default function IndianXBRL() {
           originalXml={generated.xmlText}
           filename={generated.filename}
           onBack={handleReset}
+          mcaReport={validationReport}
+          extractedData={extractData?.extraction.data ?? null}
         />
       )}
 

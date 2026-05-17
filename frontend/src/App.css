@@ -1719,6 +1719,94 @@
   align-self: flex-end;
 }
 
+/* MCA gap items — fields that couldn't be extracted from the PDF */
+.gap-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+}
+
+.gap-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gap-id {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #c2410c;
+  background: #ffedd5;
+  padding: 2px 7px;
+  border-radius: 3px;
+}
+
+.gap-name {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--heading);
+}
+
+.gap-msg {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: #92400e;
+}
+
+.gap-tag-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 0.72rem;
+}
+
+.gap-tag-label {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.gap-tag {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+  background: var(--bg-subtle);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.gap-placement {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.gap-insert-btn {
+  align-self: flex-start;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 5px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.gap-insert-btn:hover { opacity: 0.85; }
+
 .empty-item {
   display: flex;
   flex-direction: column;

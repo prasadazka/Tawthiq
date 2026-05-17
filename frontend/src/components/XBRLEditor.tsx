@@ -1,18 +1,57 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { validateXBRLXML, downloadEditedXBRL, type XMLValidationResponse } from "../api";
+import {
+  validateXBRLXML,
+  downloadEditedXBRL,
+  type XMLValidationResponse,
+  type XBRLValidationReport,
+} from "../api";
 
 interface Props {
   originalXml: string;
   filename: string;
   onBack: () => void;
+  mcaReport?: XBRLValidationReport | null;
+  extractedData?: Record<string, unknown> | null;
 }
 
-export default function XBRLEditor({ originalXml, filename, onBack }: Props) {
+/* Map MCA validation rule_id → which XBRL tag the missing value belongs in.
+   Lets us suggest the right tag for the user to add. */
+const RULE_TO_XBRL_HINT: Record<string, { tag: string; context: string; placement: string }> = {
+  IN_R01: { tag: 'xbrli:identifier scheme="http://www.mca.gov.in/CIN"', context: "(inside every <xbrli:entity>)", placement: "All contexts already include this — fill the CIN value between the opening and closing tag." },
+  IN_R02: { tag: "in-ca:NameOfCompany", context: "D_CY", placement: "Inside the facts section." },
+  IN_R03: { tag: "in-ca:AddressOfRegisteredOfficeOfCompany", context: "D_CY", placement: "Inside the facts section." },
+  IN_R04: { tag: "in-ca:TypeOfIndustry", context: "D_CY", placement: "Inside the facts section." },
+  IN_R09: { tag: "in-ca:NatureOfReportStandaloneConsolidated", context: "D_CY", placement: "Inside the facts section." },
+  IN_R10: { tag: "in-gaap:Assets", context: "I_CY", placement: "With unitRef='INR' decimals='0' attributes." },
+  IN_R11: { tag: "in-gaap:Assets", context: "I_PY", placement: "Prior-year balance sheet total." },
+  IN_R12: { tag: "in-gaap:Assets / in-gaap:Equity / in-gaap:Liabilities", context: "I_CY", placement: "Verify Assets = Equity + Liabilities." },
+  IN_R13: { tag: "in-gaap:Assets / in-gaap:Equity / in-gaap:Liabilities", context: "I_PY", placement: "Prior-year balance sheet equation." },
+  IN_R14: { tag: "in-gaap:ShareCapital", context: "I_CY", placement: "With unitRef='INR' decimals='0'." },
+  IN_R16: { tag: "in-gaap:RevenueFromOperations", context: "D_CY", placement: "With unitRef='INR' decimals='0'." },
+  IN_R17: { tag: "in-gaap:ProfitLossForPeriod", context: "D_CY", placement: "With unitRef='INR' decimals='0'." },
+  IN_R20: { tag: "in-gaap:ProfitLossForPeriod", context: "D_PY", placement: "Prior-year profit comparative." },
+  IN_R21: { tag: "in-gaap:CashFlowsFromUsedInOperatingActivities / InvestingActivities / FinancingActivities", context: "D_CY", placement: "Three cash-flow sections." },
+  IN_R23: { tag: "in-ca:TypeOfCashFlowStatement", context: "D_CY", placement: "Direct Method or Indirect Method." },
+  IN_R24: { tag: "in-ca:NameOfAuditFirm", context: "AuditorsDomain_D_CY_3066_1_1", placement: "Inside auditor dimensional context." },
+  IN_R25: { tag: "in-ca:NameOfAuditorSigningReport", context: "AuditorsDomain_D_CY_3066_1_1", placement: "Inside auditor dimensional context." },
+  IN_R26: { tag: "in-ca:MembershipNumberOfAuditorOrAuditorsRepresentative", context: "AuditorsDomain_D_CY_3066_1_1", placement: "Inside auditor dimensional context." },
+  IN_R27: { tag: "in-ca:DateOfSigningAuditReportByAuditors", context: "AuditorsDomain_D_CY_3066_1_1", placement: "Must be after fiscal year-end." },
+  IN_R30: { tag: "in-ca:DateOfBoardMeetingWhenFinalAccountsWereApproved", context: "D_CY", placement: "Date in YYYY-MM-DD format." },
+  IN_R33: { tag: "in-ca:LevelOfRoundingUsedInFinancialStatements", context: "D_CY", placement: "Actual / Thousands / Lakhs / Millions / Crores." },
+};
+
+export default function XBRLEditor({
+  originalXml,
+  filename,
+  onBack,
+  mcaReport,
+  extractedData: _extractedData,
+}: Props) {
   const [xml, setXml] = useState(originalXml);
   const [validation, setValidation] = useState<XMLValidationResponse | null>(null);
   const [validating, setValidating] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [activePanel, setActivePanel] = useState<"issues" | "empty" | "diff">("issues");
+  const [activePanel, setActivePanel] = useState<"gaps" | "issues" | "empty" | "diff">("gaps");
   const [flashLine, setFlashLine] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
@@ -105,6 +144,42 @@ export default function XBRLEditor({ originalXml, filename, onBack }: Props) {
   const emptyCount = validation?.empty_facts.length ?? 0;
   const canDownload = !!validation && validation.valid && !validating;
 
+  /* MCA-level gaps: rules from the 33-rule MCA validator that the source PDF
+     couldn't satisfy (e.g., CIN absent, address absent). These don't appear in
+     XML validation because the missing data simply isn't in the generated XML
+     at all — but the user still needs to know about and fill them in. */
+  const mcaGaps = useMemo(() => {
+    if (!mcaReport) return [];
+    return [...mcaReport.blocking_failures, ...mcaReport.warnings].map((f) => ({
+      rule_id: f.rule_id,
+      name: f.name,
+      message: f.message,
+      hint: RULE_TO_XBRL_HINT[f.rule_id],
+    }));
+  }, [mcaReport]);
+
+  const insertPlaceholderTag = (hint: { tag: string; context: string }) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    // Build snippet — keep value blank so empty-field detector flags it
+    const tagOnly = hint.tag.split(" ")[0].split(" /")[0];
+    const snippet =
+      `\n    <${tagOnly} contextRef="${hint.context}">FILL_VALUE_HERE</${tagOnly}>`;
+    // Insert at cursor position (or end if no cursor)
+    const cursor = ta.selectionStart ?? xml.length;
+    const newXml = xml.slice(0, cursor) + snippet + xml.slice(cursor);
+    setXml(newXml);
+    // Move caret to the placeholder so user can immediately type
+    const placeholderPos = cursor + snippet.indexOf("FILL_VALUE_HERE");
+    window.setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(placeholderPos, placeholderPos + "FILL_VALUE_HERE".length);
+      const line = newXml.slice(0, placeholderPos).split("\n").length;
+      setFlashLine(line);
+      window.setTimeout(() => setFlashLine(null), 1500);
+    }, 50);
+  };
+
   return (
     <div className="xbrl-editor">
       {/* Header */}
@@ -192,17 +267,24 @@ export default function XBRLEditor({ originalXml, filename, onBack }: Props) {
           <div className="side-tabs">
             <button
               type="button"
+              className={`side-tab ${activePanel === "gaps" ? "side-tab-active" : ""}`}
+              onClick={() => setActivePanel("gaps")}
+            >
+              Gaps ({mcaGaps.length})
+            </button>
+            <button
+              type="button"
               className={`side-tab ${activePanel === "issues" ? "side-tab-active" : ""}`}
               onClick={() => setActivePanel("issues")}
             >
-              Issues ({errorCount + warningCount})
+              XML ({errorCount + warningCount})
             </button>
             <button
               type="button"
               className={`side-tab ${activePanel === "empty" ? "side-tab-active" : ""}`}
               onClick={() => setActivePanel("empty")}
             >
-              Missing ({emptyCount})
+              Empty ({emptyCount})
             </button>
             <button
               type="button"
@@ -214,6 +296,47 @@ export default function XBRLEditor({ originalXml, filename, onBack }: Props) {
           </div>
 
           <div className="side-content">
+            {activePanel === "gaps" && (
+              <>
+                {mcaGaps.length === 0 && (
+                  <p className="side-ok">No MCA gaps — all 33 source-data rules satisfied.</p>
+                )}
+                {mcaGaps.length > 0 && (
+                  <p className="side-help">
+                    These fields couldn't be extracted from the PDF. Click any item to insert a
+                    placeholder tag in the XML at your cursor position, then type the value.
+                  </p>
+                )}
+                {mcaGaps.map((g) => (
+                  <div className="gap-item" key={g.rule_id}>
+                    <div className="gap-head">
+                      <span className="gap-id">{g.rule_id}</span>
+                      <span className="gap-name">{g.name}</span>
+                    </div>
+                    <p className="gap-msg">{g.message}</p>
+                    {g.hint && (
+                      <>
+                        <div className="gap-tag-info">
+                          <span className="gap-tag-label">XBRL tag:</span>
+                          <code className="gap-tag">{g.hint.tag}</code>
+                          <span className="gap-tag-label">context:</span>
+                          <code className="gap-tag">{g.hint.context}</code>
+                        </div>
+                        <p className="gap-placement">{g.hint.placement}</p>
+                        <button
+                          type="button"
+                          className="gap-insert-btn"
+                          onClick={() => insertPlaceholderTag(g.hint!)}
+                        >
+                          + Insert placeholder tag
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+
             {activePanel === "issues" && (
               <>
                 {!validation && <p className="side-empty">Validating...</p>}
