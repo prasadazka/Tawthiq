@@ -1807,6 +1807,17 @@
 
 .gap-insert-btn:hover { opacity: 0.85; }
 
+.gap-pill-present {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: #047857;
+  background: #d1fae5;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
 .empty-item {
   display: flex;
   flex-direction: column;

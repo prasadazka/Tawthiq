@@ -158,23 +158,68 @@ export default function XBRLEditor({
     }));
   }, [mcaReport]);
 
+  // Pull the first concrete tag name from a hint like "in-gaap:Assets / in-gaap:Equity"
+  // or "xbrli:identifier scheme=..." → returns null for non-insertable hints (multi-tag,
+  // identifier, etc.) and the user is asked to jump manually.
+  const extractInsertableTag = (rawTag: string): string | null => {
+    if (rawTag.includes("/")) return null;            // multi-tag hints — too ambiguous
+    if (rawTag.startsWith("xbrli:")) return null;     // entity/identifier — not a fact
+    const tag = rawTag.split(" ")[0];                 // drop attribute hints
+    if (!tag.includes(":")) return null;              // missing namespace
+    return tag;
+  };
+
+  // For a given hint, find the first matching tag+context in the XML.
+  // Returns the 1-indexed line number if found, else 0.
+  const findExistingTagLine = (rawTag: string, context: string): number => {
+    const tag = extractInsertableTag(rawTag);
+    if (!tag) return 0;
+    const escTag = tag.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+    const escCtx = context.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+    const re = new RegExp(`<${escTag}\\b[^>]*contextRef="${escCtx}"`);
+    const m = re.exec(xml);
+    if (!m) return 0;
+    return xml.slice(0, m.index).split("\n").length;
+  };
+
   const insertPlaceholderTag = (hint: { tag: string; context: string }) => {
     const ta = textareaRef.current;
     if (!ta) return;
-    // Build snippet — keep value blank so empty-field detector flags it
-    const tagOnly = hint.tag.split(" ")[0].split(" /")[0];
-    const snippet =
-      `\n    <${tagOnly} contextRef="${hint.context}">FILL_VALUE_HERE</${tagOnly}>`;
-    // Insert at cursor position (or end if no cursor)
-    const cursor = ta.selectionStart ?? xml.length;
-    const newXml = xml.slice(0, cursor) + snippet + xml.slice(cursor);
+
+    // 1. If a matching tag already exists in the XML, jump to it instead of duplicating
+    const existingLine = findExistingTagLine(hint.tag, hint.context);
+    if (existingLine > 0) {
+      jumpToLine(existingLine);
+      return;
+    }
+
+    // 2. Build a single-tag placeholder. Skip if the hint isn't unambiguous.
+    const tagOnly = extractInsertableTag(hint.tag);
+    if (!tagOnly) {
+      // Multi-tag or special — just inform the user.
+      window.alert(
+        `This rule covers multiple tags (${hint.tag}). ` +
+        `Locate them in the XML and fill values manually.`
+      );
+      return;
+    }
+
+    const snippet = `\n    <${tagOnly} contextRef="${hint.context}">FILL_VALUE_HERE</${tagOnly}>`;
+    // Insert before the closing </xbrli:xbrl> so we don't break the document
+    const closeIdx = xml.lastIndexOf("</xbrli:xbrl>");
+    const insertAt = closeIdx > 0 ? closeIdx : xml.length;
+    const newXml = xml.slice(0, insertAt) + snippet + "\n" + xml.slice(insertAt);
     setXml(newXml);
-    // Move caret to the placeholder so user can immediately type
-    const placeholderPos = cursor + snippet.indexOf("FILL_VALUE_HERE");
+
+    // Highlight the placeholder so the user can immediately type the value
+    const placeholderPos = insertAt + snippet.indexOf("FILL_VALUE_HERE");
     window.setTimeout(() => {
       ta.focus();
       ta.setSelectionRange(placeholderPos, placeholderPos + "FILL_VALUE_HERE".length);
       const line = newXml.slice(0, placeholderPos).split("\n").length;
+      const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 18;
+      ta.scrollTop = Math.max(0, (line - 1) * lineHeight - ta.clientHeight / 2);
+      if (lineNumbersRef.current) lineNumbersRef.current.scrollTop = ta.scrollTop;
       setFlashLine(line);
       window.setTimeout(() => setFlashLine(null), 1500);
     }, 50);
@@ -307,33 +352,44 @@ export default function XBRLEditor({
                     placeholder tag in the XML at your cursor position, then type the value.
                   </p>
                 )}
-                {mcaGaps.map((g) => (
-                  <div className="gap-item" key={g.rule_id}>
-                    <div className="gap-head">
-                      <span className="gap-id">{g.rule_id}</span>
-                      <span className="gap-name">{g.name}</span>
+                {mcaGaps.map((g) => {
+                  const existingLine = g.hint ? findExistingTagLine(g.hint.tag, g.hint.context) : 0;
+                  const canInsert = g.hint && extractInsertableTag(g.hint.tag) !== null;
+                  return (
+                    <div className="gap-item" key={g.rule_id}>
+                      <div className="gap-head">
+                        <span className="gap-id">{g.rule_id}</span>
+                        <span className="gap-name">{g.name}</span>
+                        {existingLine > 0 && (
+                          <span className="gap-pill-present">In XML (line {existingLine})</span>
+                        )}
+                      </div>
+                      <p className="gap-msg">{g.message}</p>
+                      {g.hint && (
+                        <>
+                          <div className="gap-tag-info">
+                            <span className="gap-tag-label">XBRL tag:</span>
+                            <code className="gap-tag">{g.hint.tag}</code>
+                            <span className="gap-tag-label">context:</span>
+                            <code className="gap-tag">{g.hint.context}</code>
+                          </div>
+                          <p className="gap-placement">{g.hint.placement}</p>
+                          <button
+                            type="button"
+                            className="gap-insert-btn"
+                            onClick={() => insertPlaceholderTag(g.hint!)}
+                          >
+                            {existingLine > 0
+                              ? `→ Jump to line ${existingLine}`
+                              : canInsert
+                              ? "+ Insert placeholder tag"
+                              : "Find in XML"}
+                          </button>
+                        </>
+                      )}
                     </div>
-                    <p className="gap-msg">{g.message}</p>
-                    {g.hint && (
-                      <>
-                        <div className="gap-tag-info">
-                          <span className="gap-tag-label">XBRL tag:</span>
-                          <code className="gap-tag">{g.hint.tag}</code>
-                          <span className="gap-tag-label">context:</span>
-                          <code className="gap-tag">{g.hint.context}</code>
-                        </div>
-                        <p className="gap-placement">{g.hint.placement}</p>
-                        <button
-                          type="button"
-                          className="gap-insert-btn"
-                          onClick={() => insertPlaceholderTag(g.hint!)}
-                        >
-                          + Insert placeholder tag
-                        </button>
-                      </>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </>
             )}
 
