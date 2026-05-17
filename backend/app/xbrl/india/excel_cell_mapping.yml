@@ -13,7 +13,7 @@
 # A path starting with "$" is a special directive (e.g., $company.name overrides
 # the literal cell). Otherwise it's a JSON path traversed in the extracted data.
 
-# ─── Title overrides (so the file doesn't say "RAMSON" for other companies) ──
+# ─── Title overrides (replace cleared company-name / date / CIN headers) ────
 title_overrides:
   BS:
     A1: "$company.name"
@@ -26,6 +26,63 @@ title_overrides:
     A2_format: "CASH FLOW STATEMENT AS AT {end_date_indian}"
   Notes:
     B1: "$company.name"
+  "Trial Bal":
+    A1: "$company.name"
+    A2_format: "CIN: {company_cin}"
+    B5: "$company.name"
+  TB2023:
+    A1: "$company.name"
+    A2_format: "CIN: {company_cin}"
+    B5: "$company.name"
+  "IT Dep":
+    A3_format: "M/S. {company_name}"
+  "Com Dep":
+    A1: "$company.name"
+
+# ─── Signature blocks across multiple sheets (dynamically filled from data) ──
+# Each entry: { sheet, cell, json_path, prefix? }
+signature_blocks:
+  # Audit firm regn No.
+  - { sheet: "Sch III Ratios", cell: A30, prefix: "( Firm regn. No. ", suffix: ")", json_path: auditor.firm_registration_number }
+  - { sheet: BS,              cell: A34, prefix: "( Firm regn. No. ", suffix: ")", json_path: auditor.firm_registration_number }
+  - { sheet: CFS,             cell: A46, prefix: "Firm regn. No. ",   json_path: auditor.firm_registration_number }
+  - { sheet: "P&L",           cell: A31, prefix: "( Firm regn. No. ", suffix: ")", json_path: auditor.firm_registration_number }
+  - { sheet: "Add Notes",     cell: C37, prefix: "( Firm regn. No. ", suffix: ")", json_path: auditor.firm_registration_number }
+  # Auditor partner name
+  - { sheet: "Sch III Ratios", cell: A33, json_path: auditor.partner_name }
+  - { sheet: BS,              cell: A37, json_path: auditor.partner_name }
+  - { sheet: CFS,             cell: A50, json_path: auditor.partner_name }
+  - { sheet: "P&L",           cell: A34, json_path: auditor.partner_name }
+  - { sheet: "Add Notes",     cell: C40, json_path: auditor.partner_name }
+  # Auditor membership number
+  - { sheet: "Sch III Ratios", cell: A35, prefix: "Membership No. ", json_path: auditor.membership_number }
+  - { sheet: BS,              cell: A39, prefix: "Membership No. ", json_path: auditor.membership_number }
+  - { sheet: CFS,             cell: A52, prefix: "Membership No. ", json_path: auditor.membership_number }
+  - { sheet: "P&L",           cell: A36, prefix: "Membership No. ", json_path: auditor.membership_number }
+  - { sheet: "Add Notes",     cell: C42, prefix: "Membership No. ", json_path: auditor.membership_number }
+  # Place + Date (signing)
+  - { sheet: "Sch III Ratios", cell: A36, prefix: "Place: ", json_path: company.state }
+  - { sheet: BS,              cell: A40, prefix: "Place: ", json_path: company.state }
+  - { sheet: CFS,             cell: A53, prefix: "Place: ", json_path: company.state }
+  - { sheet: "P&L",           cell: A37, prefix: "Place: ", json_path: company.state }
+  - { sheet: BS,              cell: A41, prefix: "Date : ", json_path: auditor.signature_date }
+  - { sheet: CFS,             cell: A54, prefix: "Date : ", json_path: auditor.signature_date }
+
+# ─── Director signature blocks (uses directors[0] and directors[1]) ──────────
+# Layout: Director 1 name + DIN appears in one cell pair, Director 2 in another.
+director_signatures:
+  - { sheet: "Sch III Ratios", name_cell: E30, din_cell: E31, index: 0 }
+  - { sheet: "Sch III Ratios", name_cell: F32, din_cell: F33, index: 0 }   # repeated block
+  - { sheet: "Sch III Ratios", name_cell: E35, din_cell: E36, index: 1 }
+  - { sheet: "Sch III Ratios", name_cell: F37, din_cell: F38, index: 1 }
+  - { sheet: BS,              name_cell: D36, din_cell: D37, index: 0 }
+  - { sheet: BS,              name_cell: D41, din_cell: D42, index: 1 }
+  - { sheet: CFS,             name_cell: C47, din_cell: C48, index: 0 }
+  - { sheet: CFS,             name_cell: C53, din_cell: C54, index: 1 }
+  - { sheet: "P&L",           name_cell: D32, din_cell: D33, index: 0 }
+  - { sheet: "P&L",           name_cell: D38, din_cell: D39, index: 1 }
+  - { sheet: "Add Notes",     name_cell: G37, din_cell: G38, index: 0 }
+  - { sheet: "Add Notes",     name_cell: G40, din_cell: G41, index: 1 }
 
 # ─── BALANCE SHEET ───────────────────────────────────────────────────────────
 # Columns: A=Particulars, B=NoteNo, C=CY (2023), D=PY (2022), E=PPY (2021), F=PPPY (2020)
@@ -163,10 +220,4 @@ director_rows:
   columns:
     E: name              # "Person" column
 
-# ─── Auditor (BS sheet signature block) ──────────────────────────────────────
-auditor:
-  - { sheet: BS, cell: A32, json_path: "$literal", value: "For " }  # prefix
-  - { sheet: BS, cell: A37, json_path: auditor.partner_name }
-  - { sheet: BS, cell: A39, json_path: auditor.membership_number, prefix: "Membership No. " }
-  - { sheet: BS, cell: A40, json_path: "$literal", value: "Place: India" }
-  - { sheet: BS, cell: A41, json_path: auditor.signature_date, prefix: "Date : " }
+# (Old 'auditor:' block removed — replaced by 'signature_blocks' above.)

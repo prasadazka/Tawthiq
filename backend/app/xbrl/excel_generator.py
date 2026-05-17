@@ -79,11 +79,19 @@ def _fmt_date_indian(iso_date: str | None) -> str:
 # ── core generator ───────────────────────────────────────────────────────────
 
 def _apply_title_overrides(wb: Workbook, data: dict, overrides: dict) -> int:
-    """Replace company-name and date placeholders in sheet titles."""
+    """Replace cleared title cells with extracted company name / dates / CIN."""
     written = 0
     company_name = (_get(data, "company.name") or "COMPANY").upper()
+    company_cin = _get(data, "company.cin") or ""
     end_date = _get(data, "reporting_period.end_date")
     end_ind = _fmt_date_indian(end_date)
+
+    fmt_args = dict(
+        company_name=company_name,
+        company_cin=company_cin,
+        end_date=end_date or "",
+        end_date_indian=end_ind,
+    )
 
     for sheet_name, cell_map in overrides.items():
         if sheet_name not in wb.sheetnames:
@@ -92,13 +100,8 @@ def _apply_title_overrides(wb: Workbook, data: dict, overrides: dict) -> int:
         for cell_addr, directive in cell_map.items():
             if cell_addr.endswith("_format"):
                 base = cell_addr[: -len("_format")]
-                val = directive.format(
-                    company_name=company_name,
-                    end_date=end_date or "",
-                    end_date_indian=end_ind,
-                )
                 try:
-                    ws[base] = val
+                    ws[base] = directive.format(**fmt_args)
                     written += 1
                 except Exception:
                     pass
@@ -108,8 +111,57 @@ def _apply_title_overrides(wb: Workbook, data: dict, overrides: dict) -> int:
                     written += 1
                 except Exception:
                     pass
-            elif isinstance(directive, str) and directive.startswith("$"):
-                pass   # other $-directives ignored for now
+    return written
+
+
+def _write_signature_blocks(wb: Workbook, items: list, data: dict) -> int:
+    """Fill auditor firm/partner/membership/place/date across all signature blocks."""
+    written = 0
+    for item in items or []:
+        sheet = item.get("sheet")
+        cell = item.get("cell")
+        path = item.get("json_path")
+        if not sheet or sheet not in wb.sheetnames or not cell or not path:
+            continue
+        v = _get(data, path)
+        if v is None or v == "":
+            continue
+        text = f"{item.get('prefix','')}{v}{item.get('suffix','')}"
+        try:
+            wb[sheet][cell] = text
+            written += 1
+        except Exception:
+            pass
+    return written
+
+
+def _write_director_signatures(wb: Workbook, items: list, data: dict) -> int:
+    """Fill director name + DIN pairs in signature blocks across multiple sheets."""
+    directors = data.get("directors") or []
+    written = 0
+    for item in items or []:
+        sheet = item.get("sheet")
+        idx = item.get("index", 0)
+        if sheet not in wb.sheetnames or idx >= len(directors):
+            continue
+        d = directors[idx]
+        if not isinstance(d, dict):
+            continue
+        name = d.get("name")
+        din = d.get("din")
+        ws = wb[sheet]
+        if name and item.get("name_cell"):
+            try:
+                ws[item["name_cell"]] = name
+                written += 1
+            except Exception:
+                pass
+        if din and item.get("din_cell"):
+            try:
+                ws[item["din_cell"]] = f"DIN: {din}"
+                written += 1
+            except Exception:
+                pass
     return written
 
 
@@ -236,11 +288,19 @@ def generate_excel(data: dict, filename_base: str = "tawthiq_xbrl") -> ExcelResu
         if "director_rows" in mapping:
             cells_written += _write_director_rows(wb, mapping["director_rows"], data)
 
-        # 4. Auditor block
+        # 4. Auditor signature blocks across all sheets
+        if "signature_blocks" in mapping:
+            cells_written += _write_signature_blocks(wb, mapping["signature_blocks"], data)
+
+        # 5. Director name + DIN signature blocks across all sheets
+        if "director_signatures" in mapping:
+            cells_written += _write_director_signatures(wb, mapping["director_signatures"], data)
+
+        # 6. Back-compat: legacy 'auditor' block (used by older mappings)
         if "auditor" in mapping:
             cells_written += _write_auditor_block(wb, mapping["auditor"], data)
 
-        # 5. Save
+        # 7. Save
         buf = io.BytesIO()
         wb.save(buf)
         xlsx_bytes = buf.getvalue()
