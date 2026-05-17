@@ -354,37 +354,37 @@ mappings:
   # These mappings expand into multiple facts if multiple auditors exist
   auditor.firm_name:
     tag: "in-ca:NameOfAuditFirm"
-    context: AuditorsDomain_D_CY
+    context: AuditorsDomain_D_CY_3066_1_1
     type: string
     dimensional: true
 
   auditor.firm_registration_number:
     tag: "in-ca:FirmRegistrationNumberOfAuditFirm"
-    context: AuditorsDomain_D_CY
+    context: AuditorsDomain_D_CY_3066_1_1
     type: string
     dimensional: true
 
   auditor.partner_name:
     tag: "in-ca:NameOfAuditorSigningReport"
-    context: AuditorsDomain_D_CY
+    context: AuditorsDomain_D_CY_3066_1_1
     type: string
     dimensional: true
 
   auditor.membership_number:
     tag: "in-ca:MembershipNumberOfAuditorOrAuditorsRepresentative"
-    context: AuditorsDomain_D_CY
+    context: AuditorsDomain_D_CY_3066_1_1
     type: string
     dimensional: true
 
   auditor.address:
     tag: "in-ca:AddressOfAuditors"
-    context: AuditorsDomain_D_CY
+    context: AuditorsDomain_D_CY_3066_1_1
     type: string
     dimensional: true
 
   auditor.signature_date:
     tag: "in-ca:DateOfSigningAuditReportByAuditors"
-    context: AuditorsDomain_D_CY
+    context: AuditorsDomain_D_CY_3066_1_1
     type: date
     dimensional: true
 
