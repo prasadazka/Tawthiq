@@ -11,6 +11,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 
 from app.services.extractor import get_pdf_info
+from app.xbrl.excel_generator import generate_excel
 from app.xbrl.extractor import XBRLDataExtractor
 from app.xbrl.generator import IndianXBRLGenerator
 from app.xbrl.validator import IndianXBRLValidator
@@ -283,3 +284,63 @@ async def download_xml(req: XMLDownloadRequest):
         "Content-Disposition": f'attachment; filename="{req.filename}"',
     }
     return Response(content=xml_bytes, media_type="application/xml", headers=headers)
+
+
+@router.post("/generate-excel")
+async def generate_excel_endpoint(file: UploadFile = File(...)):
+    """End-to-end: PDF → extract → produce multi-sheet Excel workbook.
+
+    Returns an .xlsx file the user can download to inspect every extracted
+    field side-by-side with empty cells highlighted (yellow). Useful for
+    reviewing AI extraction quality and comparing against the source.
+    """
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="File must be a PDF")
+
+    pdf_bytes = await file.read()
+    doc_info = get_pdf_info(pdf_bytes)
+
+    extractor = XBRLDataExtractor(EXTRACTION_SCHEMA)
+    er = extractor.extract(pdf_bytes, doc_info.get("full_text", ""))
+    if not er.success:
+        raise HTTPException(status_code=500, detail=f"Extraction failed: {er.error}")
+
+    excel = generate_excel(er.data)
+    if not excel.success:
+        raise HTTPException(status_code=500, detail=f"Excel generation failed: {excel.error}")
+
+    headers = {
+        "Content-Disposition": f'attachment; filename="{excel.filename}"',
+        "X-Tawthiq-Sheets": str(excel.sheet_count),
+        "X-Tawthiq-Cells": str(excel.cell_count),
+    }
+    return Response(
+        content=excel.xlsx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers,
+    )
+
+
+class ExcelFromJSONRequest(BaseModel):
+    data: dict
+
+
+@router.post("/generate-excel-from-json")
+async def generate_excel_from_json(req: ExcelFromJSONRequest):
+    """Skip extraction — generate Excel directly from an existing JSON payload.
+
+    Useful inside the editor flow where the frontend already has the extracted
+    data and wants to download the Excel without re-running Gemini.
+    """
+    excel = generate_excel(req.data)
+    if not excel.success:
+        raise HTTPException(status_code=500, detail=f"Excel generation failed: {excel.error}")
+    headers = {
+        "Content-Disposition": f'attachment; filename="{excel.filename}"',
+        "X-Tawthiq-Sheets": str(excel.sheet_count),
+    }
+    return Response(
+        content=excel.xlsx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers,
+    )

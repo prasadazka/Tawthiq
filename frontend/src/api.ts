@@ -178,6 +178,24 @@ export async function downloadEditedXBRL(xml: string, filename: string): Promise
   return res.blob();
 }
 
+export async function downloadExcelFromJSON(
+  data: Record<string, unknown>
+): Promise<{ blob: Blob; filename: string }> {
+  const res = await fetch(`${API_BASE}/api/xbrl/india/generate-excel-from-json`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Excel generation failed" }));
+    throw new Error(err.detail || `Server error: ${res.status}`);
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get("content-disposition") || "";
+  const m = disposition.match(/filename="([^"]+)"/);
+  return { blob, filename: m ? m[1] : "tawthiq_xbrl.xlsx" };
+}
+
 export async function generateIndianXBRL(
   file: File,
   skipValidation: boolean = false

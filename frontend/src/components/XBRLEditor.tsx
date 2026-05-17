@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   validateXBRLXML,
   downloadEditedXBRL,
+  downloadExcelFromJSON,
   type XMLValidationResponse,
   type XBRLValidationReport,
 } from "../api";
@@ -45,8 +46,9 @@ export default function XBRLEditor({
   filename,
   onBack,
   mcaReport,
-  extractedData: _extractedData,
+  extractedData,
 }: Props) {
+  const [downloadingExcel, setDownloadingExcel] = useState(false);
   const [xml, setXml] = useState(originalXml);
   const [validation, setValidation] = useState<XMLValidationResponse | null>(null);
   const [validating, setValidating] = useState(false);
@@ -103,6 +105,29 @@ export default function XBRLEditor({
       alert("Download failed: " + (err instanceof Error ? err.message : err));
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const handleDownloadExcel = async () => {
+    if (!extractedData) {
+      alert("Extracted data not available for Excel export.");
+      return;
+    }
+    setDownloadingExcel(true);
+    try {
+      const { blob, filename: xlsxName } = await downloadExcelFromJSON(extractedData);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = xlsxName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Excel download failed: " + (err instanceof Error ? err.message : err));
+    } finally {
+      setDownloadingExcel(false);
     }
   };
 
@@ -271,6 +296,15 @@ export default function XBRLEditor({
             disabled={validating}
           >
             {validating ? "Validating..." : "Re-validate"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={handleDownloadExcel}
+            disabled={!extractedData || downloadingExcel}
+            title={extractedData ? "Download Excel workbook for review" : "No extracted data available"}
+          >
+            {downloadingExcel ? "Preparing Excel..." : "Download Excel"}
           </button>
           <button
             type="button"
