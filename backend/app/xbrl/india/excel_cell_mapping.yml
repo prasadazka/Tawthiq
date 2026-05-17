@@ -1,0 +1,172 @@
+# Cell-address → JSON-path mapping for the Indian Excel template.
+#
+# The template (template.xlsx) is the original Ramson workbook with every
+# numeric data cell cleared. Labels, headers, formatting and sheet structure
+# stay intact. This file tells the generator which JSON path to write into
+# each cleared cell.
+#
+# Format:
+#   <SheetName>:
+#     <CellAddress>: <jsonPathOrLiteral>
+#   ...
+#
+# A path starting with "$" is a special directive (e.g., $company.name overrides
+# the literal cell). Otherwise it's a JSON path traversed in the extracted data.
+
+# ─── Title overrides (so the file doesn't say "RAMSON" for other companies) ──
+title_overrides:
+  BS:
+    A1: "$company.name"
+    A2_format: "BALANCE SHEET AS AT {end_date_indian}"
+  "P&L":
+    A1: "$company.name"
+    A2_format: "PROFIT AND LOSS STATEMENT FOR THE YEAR ENDED {end_date_indian}"
+  CFS:
+    A1: "$company.name"
+    A2_format: "CASH FLOW STATEMENT AS AT {end_date_indian}"
+  Notes:
+    B1: "$company.name"
+
+# ─── BALANCE SHEET ───────────────────────────────────────────────────────────
+# Columns: A=Particulars, B=NoteNo, C=CY (2023), D=PY (2022), E=PPY (2021), F=PPPY (2020)
+BS:
+  # Equity & Liabilities
+  C7: balance_sheet.current_year.equity_and_liabilities.share_capital
+  D7: balance_sheet.prior_year.equity_and_liabilities.share_capital
+  C8: balance_sheet.current_year.equity_and_liabilities.reserves_and_surplus
+  D8: balance_sheet.prior_year.equity_and_liabilities.reserves_and_surplus
+  C10: balance_sheet.current_year.equity_and_liabilities.non_current_liabilities.long_term_borrowings
+  D10: balance_sheet.prior_year.equity_and_liabilities.non_current_liabilities.long_term_borrowings
+  C12: balance_sheet.current_year.equity_and_liabilities.current_liabilities.trade_payables
+  D12: balance_sheet.prior_year.equity_and_liabilities.current_liabilities.trade_payables
+  C13: balance_sheet.current_year.equity_and_liabilities.current_liabilities.other_current_liabilities
+  D13: balance_sheet.prior_year.equity_and_liabilities.current_liabilities.other_current_liabilities
+  C14: balance_sheet.current_year.equity_and_liabilities.total_equity_and_liabilities
+  D14: balance_sheet.prior_year.equity_and_liabilities.total_equity_and_liabilities
+  # Assets
+  C18: balance_sheet.current_year.assets.non_current_assets.tangible_assets
+  D18: balance_sheet.prior_year.assets.non_current_assets.tangible_assets
+  C19: balance_sheet.current_year.assets.non_current_assets.deferred_tax_assets
+  D19: balance_sheet.prior_year.assets.non_current_assets.deferred_tax_assets
+  C20: balance_sheet.current_year.assets.non_current_assets.non_current_investments
+  D20: balance_sheet.prior_year.assets.non_current_assets.non_current_investments
+  C21: balance_sheet.current_year.assets.non_current_assets.long_term_loans_and_advances
+  D21: balance_sheet.prior_year.assets.non_current_assets.long_term_loans_and_advances
+  C23: balance_sheet.current_year.assets.current_assets.inventories
+  D23: balance_sheet.prior_year.assets.current_assets.inventories
+  C24: balance_sheet.current_year.assets.current_assets.trade_receivables
+  D24: balance_sheet.prior_year.assets.current_assets.trade_receivables
+  C25: balance_sheet.current_year.assets.current_assets.cash_and_bank_balances
+  D25: balance_sheet.prior_year.assets.current_assets.cash_and_bank_balances
+  C26: balance_sheet.current_year.assets.current_assets.other_current_assets
+  D26: balance_sheet.prior_year.assets.current_assets.other_current_assets
+  C27: balance_sheet.current_year.assets.total_assets
+  D27: balance_sheet.prior_year.assets.total_assets
+
+# ─── PROFIT & LOSS ───────────────────────────────────────────────────────────
+"P&L":
+  C5: profit_loss.current_year.revenue_from_operations
+  D5: profit_loss.prior_year.revenue_from_operations
+  C6: profit_loss.current_year.other_income
+  D6: profit_loss.prior_year.other_income
+  C7: profit_loss.current_year.total_revenue
+  D7: profit_loss.prior_year.total_revenue
+  C10: profit_loss.current_year.expenses.purchases_of_stock_in_trade
+  D10: profit_loss.prior_year.expenses.purchases_of_stock_in_trade
+  C13: profit_loss.current_year.expenses.changes_in_inventories
+  D13: profit_loss.prior_year.expenses.changes_in_inventories
+  C14: profit_loss.current_year.expenses.employee_benefits_expense
+  D14: profit_loss.prior_year.expenses.employee_benefits_expense
+  C16: profit_loss.current_year.expenses.finance_costs
+  D16: profit_loss.prior_year.expenses.finance_costs
+  C17: profit_loss.current_year.expenses.depreciation_amortisation
+  D17: profit_loss.prior_year.expenses.depreciation_amortisation
+  C18: profit_loss.current_year.expenses.other_expenses
+  D18: profit_loss.prior_year.expenses.other_expenses
+  C19: profit_loss.current_year.expenses.total_expenses
+  D19: profit_loss.prior_year.expenses.total_expenses
+  C20: profit_loss.current_year.profit_before_tax
+  D20: profit_loss.prior_year.profit_before_tax
+  C22: profit_loss.current_year.tax_expense.current_tax
+  D22: profit_loss.prior_year.tax_expense.current_tax
+  C23: profit_loss.current_year.tax_expense.deferred_tax
+  D23: profit_loss.prior_year.tax_expense.deferred_tax
+  C24: profit_loss.current_year.profit_for_period
+  D24: profit_loss.prior_year.profit_for_period
+  C25: profit_loss.current_year.earnings_per_share.basic
+  D25: profit_loss.prior_year.earnings_per_share.basic
+
+# ─── CASH FLOW STATEMENT ─────────────────────────────────────────────────────
+# Columns: A=Particulars, B=CY, C=PY, D=PPY, E=PPPY
+CFS:
+  B5: profit_loss.current_year.profit_before_tax
+  C5: profit_loss.prior_year.profit_before_tax
+  B7: profit_loss.current_year.expenses.depreciation_amortisation
+  C7: profit_loss.prior_year.expenses.depreciation_amortisation
+  B10: profit_loss.current_year.expenses.finance_costs
+  C10: profit_loss.prior_year.expenses.finance_costs
+  B23: cash_flow.current_year.cash_from_operating_activities
+  B30: cash_flow.current_year.cash_from_investing_activities
+  B36: cash_flow.current_year.cash_from_financing_activities
+  B37: cash_flow.current_year.net_increase_decrease_in_cash
+  B39: cash_flow.current_year.cash_at_beginning_of_period
+  B40: cash_flow.current_year.cash_at_end_of_period
+  B41: cash_flow.current_year.net_increase_decrease_in_cash
+
+# ─── NOTES (Note 1: Share Capital, Shareholders) ────────────────────────────
+# Columns: D=2023 CY values, F=2022 PY values
+Notes:
+  # Note 2 - Share Capital (issued, subscribed, paid-up totals)
+  D9: balance_sheet.current_year.equity_and_liabilities.share_capital
+  F9: balance_sheet.prior_year.equity_and_liabilities.share_capital
+  D10: balance_sheet.current_year.equity_and_liabilities.share_capital
+  F10: balance_sheet.prior_year.equity_and_liabilities.share_capital
+  # Note 3 - Reserves and Surplus closing balance
+  D41: balance_sheet.current_year.equity_and_liabilities.reserves_and_surplus
+  F41: balance_sheet.prior_year.equity_and_liabilities.reserves_and_surplus
+  # Note 4 - Long Term Borrowings
+  C47: balance_sheet.current_year.equity_and_liabilities.non_current_liabilities.long_term_borrowings
+  E47: balance_sheet.prior_year.equity_and_liabilities.non_current_liabilities.long_term_borrowings
+  # Note 5 - Trade Payables
+  D51: balance_sheet.current_year.equity_and_liabilities.current_liabilities.trade_payables
+  F51: balance_sheet.prior_year.equity_and_liabilities.current_liabilities.trade_payables
+  # Note 13 - Revenue from Operations
+  D95: profit_loss.current_year.revenue_from_operations
+  F95: profit_loss.prior_year.revenue_from_operations
+  # Note 14 - Purchase of stock in trade
+  D96: profit_loss.current_year.expenses.purchases_of_stock_in_trade
+  F96: profit_loss.prior_year.expenses.purchases_of_stock_in_trade
+  # Note 15 - Changes in inventories
+  D101: profit_loss.current_year.expenses.changes_in_inventories
+  F101: profit_loss.prior_year.expenses.changes_in_inventories
+  # Note 16 - Employee benefits
+  D106: profit_loss.current_year.expenses.employee_benefits_expense
+  F106: profit_loss.prior_year.expenses.employee_benefits_expense
+
+# ─── Shareholders (dynamic — fills array rows starting at Notes R14) ─────────
+# Each shareholder takes one row with columns:
+#   B=name, C=shares CY, D=% CY, E=shares PY, F=% PY
+shareholder_rows:
+  sheet: Notes
+  start_row: 14
+  columns:
+    B: name
+    C: shares_held       # CY
+    D: percentage_held   # CY
+    E: shares_held       # PY (same for now)
+    F: percentage_held   # PY (same for now)
+
+# ─── Directors (Add Notes sheet, related party section) ──────────────────────
+director_rows:
+  sheet: Add Notes
+  start_row: 9
+  columns:
+    E: name              # "Person" column
+
+# ─── Auditor (BS sheet signature block) ──────────────────────────────────────
+auditor:
+  - { sheet: BS, cell: A32, json_path: "$literal", value: "For " }  # prefix
+  - { sheet: BS, cell: A37, json_path: auditor.partner_name }
+  - { sheet: BS, cell: A39, json_path: auditor.membership_number, prefix: "Membership No. " }
+  - { sheet: BS, cell: A40, json_path: "$literal", value: "Place: India" }
+  - { sheet: BS, cell: A41, json_path: auditor.signature_date, prefix: "Date : " }
