@@ -123,6 +123,32 @@ INDUSTRY TYPE — MUST MAP business description to one of these MCA classificati
 - "Power" → Electricity generation, transmission, distribution, renewable energy
 DO NOT output the business activity itself (e.g., "Jewellery Retail" is WRONG — use "Commercial and Industrial").
 
+CRITICAL — COMPARATIVE PRIOR YEAR VALUES (MANDATORY):
+Every Indian Balance Sheet / Profit & Loss / Cash Flow Statement has TWO numeric columns:
+the current year (CY) and the prior year (PY) shown side-by-side for comparison.
+
+You MUST extract BOTH years for every numeric line item:
+  - balance_sheet.current_year.* AND balance_sheet.prior_year.*
+  - profit_loss.current_year.* AND profit_loss.prior_year.*
+
+How to find prior year on the Balance Sheet:
+  - The column immediately to the right of the current-year amount is almost always prior year.
+  - Column header reads "As at 31 March 2022" (or whichever year is one before current).
+  - If you see "31-03-2023" and "31-03-2022" headers, the 2023 numbers go to current_year,
+    the 2022 numbers go to prior_year.
+
+How to find prior year on P&L:
+  - Same two-column layout — "Year ended 31-03-2023" and "Year ended 31-03-2022".
+
+For EVERY balance sheet line (Share Capital, Reserves, Borrowings, Trade Payables,
+Tangible Assets, Inventories, Trade Receivables, Cash, etc.) and EVERY P&L line (Revenue,
+Expenses, Profit Before Tax, Tax, Profit for the Period), populate the prior_year object
+fully — do NOT leave it as null/empty when the value is clearly printed in the document.
+
+If a particular line truly has no prior year column (rare — e.g., a first-year company),
+explicitly set the prior_year field to 0, not null. Null means "I did not find this" —
+reserve that for fields that genuinely aren't in the PDF.
+
 EXTRACTION TARGETS:
 - Company identity (name, CIN, registered address, industry, PAN, type)
 - Reporting period (current and prior year dates, report type, level of rounding, cash flow method)
