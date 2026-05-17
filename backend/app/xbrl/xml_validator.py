@@ -137,8 +137,9 @@ class XBRLXMLValidator:
         # 6. Facts + reference checks + empty value detection
         fact_count = 0
         empty_count = 0
-        orphan_ctx_refs: set[str] = set()
-        orphan_unit_refs: set[str] = set()
+        # Track each orphan reference -> first line it appears on, for clickable navigation
+        orphan_ctx_lines: dict[str, list[tuple[str, int]]] = {}  # ctx_ref -> [(tag, line)]
+        orphan_unit_lines: dict[str, list[tuple[str, int]]] = {}
 
         for elem in root.iter():
             ns = elem.tag.split("}", 1)[0].lstrip("{") if "}" in elem.tag else ""
@@ -153,12 +154,14 @@ class XBRLXMLValidator:
 
             # Check that contextRef points to a real context
             if ctx_ref not in context_ids:
-                orphan_ctx_refs.add(ctx_ref)
+                snippet = self._find_snippet(xml_text, local, ctx_ref)
+                orphan_ctx_lines.setdefault(ctx_ref, []).append((local, snippet["line"]))
 
             # Check unitRef if present
             unit_ref = elem.get("unitRef")
             if unit_ref and unit_ref not in unit_ids:
-                orphan_unit_refs.add(unit_ref)
+                snippet = self._find_snippet(xml_text, local, ctx_ref)
+                orphan_unit_lines.setdefault(unit_ref, []).append((local, snippet["line"]))
 
             # Empty value check
             text = (elem.text or "").strip()
@@ -173,17 +176,26 @@ class XBRLXMLValidator:
                     raw_xml=snippet["text"],
                 ))
 
-        if orphan_ctx_refs:
+        # Emit one ORPHAN_CONTEXT_REF issue per offending context, with the first fact's line
+        for ctx_ref, occurrences in orphan_ctx_lines.items():
+            first_tag, first_line = occurrences[0]
+            extra = f" (+{len(occurrences) - 1} more)" if len(occurrences) > 1 else ""
             report.issues.append(XMLValidationIssue(
                 severity="error",
                 code="ORPHAN_CONTEXT_REF",
-                message=f"{len(orphan_ctx_refs)} fact(s) reference undeclared context(s): {sorted(orphan_ctx_refs)}",
+                message=f'Context "{ctx_ref}" is referenced by <{first_tag}> but not declared{extra}',
+                line=first_line if first_line > 0 else None,
+                element=first_tag,
             ))
-        if orphan_unit_refs:
+        for unit_ref, occurrences in orphan_unit_lines.items():
+            first_tag, first_line = occurrences[0]
+            extra = f" (+{len(occurrences) - 1} more)" if len(occurrences) > 1 else ""
             report.issues.append(XMLValidationIssue(
                 severity="error",
                 code="ORPHAN_UNIT_REF",
-                message=f"Fact(s) reference undeclared unit(s): {sorted(orphan_unit_refs)}",
+                message=f'Unit "{unit_ref}" is referenced by <{first_tag}> but not declared{extra}',
+                line=first_line if first_line > 0 else None,
+                element=first_tag,
             ))
         if empty_count > 0:
             report.issues.append(XMLValidationIssue(

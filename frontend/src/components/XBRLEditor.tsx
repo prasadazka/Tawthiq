@@ -13,6 +13,7 @@ export default function XBRLEditor({ originalXml, filename, onBack }: Props) {
   const [validating, setValidating] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [activePanel, setActivePanel] = useState<"issues" | "empty" | "diff">("issues");
+  const [flashLine, setFlashLine] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
 
@@ -66,22 +67,30 @@ export default function XBRLEditor({ originalXml, filename, onBack }: Props) {
     }
   };
 
-  // Scroll editor to a specific line
+  // Scroll editor to a specific line (with a brief flash on the line number)
   const jumpToLine = (line: number) => {
     const ta = textareaRef.current;
     if (!ta) return;
     const lines = xml.split("\n");
+    const safeLine = Math.max(1, Math.min(line, lines.length));
     let pos = 0;
-    for (let i = 0; i < line - 1 && i < lines.length; i++) {
+    for (let i = 0; i < safeLine - 1; i++) {
       pos += lines[i].length + 1;
     }
-    ta.focus();
-    ta.setSelectionRange(pos, pos + (lines[line - 1]?.length || 0));
-    // Scroll the textarea so the line is visible
+    const lineLen = lines[safeLine - 1]?.length ?? 0;
+
+    ta.focus({ preventScroll: true });
+    ta.setSelectionRange(pos, pos + lineLen);
+
+    // Centre the line vertically in the visible area
     const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 18;
-    ta.scrollTop = (line - 1) * lineHeight - ta.clientHeight / 2;
-    // Mirror to line-number gutter
-    if (lineNumbersRef.current) lineNumbersRef.current.scrollTop = ta.scrollTop;
+    const targetTop = Math.max(0, (safeLine - 1) * lineHeight - ta.clientHeight / 2);
+    ta.scrollTop = targetTop;
+    if (lineNumbersRef.current) lineNumbersRef.current.scrollTop = targetTop;
+
+    // Flash the line number for visual confirmation
+    setFlashLine(safeLine);
+    window.setTimeout(() => setFlashLine(null), 1500);
   };
 
   // Sync line-number gutter scroll with textarea
@@ -156,15 +165,21 @@ export default function XBRLEditor({ originalXml, filename, onBack }: Props) {
       <div className="editor-body">
         <div className="editor-main">
           <div className="editor-line-numbers" ref={lineNumbersRef}>
-            {Array.from({ length: lineCount }, (_, i) => i + 1).map((n) => (
-              <div key={n} className={`ln-row ${changedLines.has(n) ? "ln-edited" : ""}`}>
-                {n}
-              </div>
-            ))}
+            {Array.from({ length: lineCount }, (_, i) => i + 1).map((n) => {
+              const classes = ["ln-row"];
+              if (changedLines.has(n)) classes.push("ln-edited");
+              if (flashLine === n) classes.push("ln-flash");
+              return (
+                <div key={n} className={classes.join(" ")}>
+                  {n}
+                </div>
+              );
+            })}
           </div>
           <textarea
             ref={textareaRef}
             className="editor-textarea"
+            aria-label="XBRL XML editor"
             value={xml}
             onChange={(e) => setXml(e.target.value)}
             onScroll={handleScroll}

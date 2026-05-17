@@ -1479,15 +1479,16 @@
    ══════════════════════════════════════════════════════════════════════════ */
 
 .xbrl-editor {
-  width: 100%;
-  max-width: 1400px;
-  margin: 16px auto;
+  position: fixed;
+  top: 52px;            /* below sticky nav */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
   background: var(--card-bg, #fff);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 120px);
   overflow: hidden;
 }
 
@@ -1546,7 +1547,7 @@
 
 .editor-body {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: 1fr 420px;
   flex: 1;
   overflow: hidden;
   min-height: 0;
@@ -1584,6 +1585,16 @@
   font-weight: 700;
   background: #ede9fe;
   border-radius: 3px;
+}
+
+.ln-row.ln-flash {
+  animation: ln-flash-anim 1.4s ease-out;
+}
+
+@keyframes ln-flash-anim {
+  0%   { background: #fde047; }
+  50%  { background: #fef08a; }
+  100% { background: transparent; }
 }
 
 .editor-textarea {
