@@ -99,12 +99,17 @@ REGISTERED OFFICE ADDRESS:
 - Look at the signature block on the balance sheet ("Place: Hyderabad", "Date: ...")
 - Combine street, area, city, state code, PIN code into a single address string
 
-DIRECTOR IDENTIFICATION NUMBER (DIN — exactly 8 digits):
-- Listed in the directors' signature block on the balance sheet
-- Listed in the directors' report or board report annexure
-- Format: DIN: 12345678 or (DIN: 12345678) or directly below the director name
-- Every director MUST have a DIN — if you see a director name without a DIN nearby, search adjacent pages
-- DIN is always exactly 8 numeric digits (e.g., 03363685, 00112233)
+DIRECTORS — STRICT RULES (very important to avoid false directors):
+- A director is ONLY someone whose name appears with the word "Director" or "Managing Director"
+  in the signature block of the Balance Sheet, the Directors' Report, or the Board Report.
+- Shareholders listed in the share-capital note are NOT directors unless they ALSO appear
+  with a Director title in a signature block.
+- If the balance sheet signature block shows 2 director signatures, then there are 2 directors —
+  do NOT add other names from elsewhere in the document.
+- Each director MUST have an 8-digit DIN. If you cannot find a DIN near a director's name,
+  do NOT include that person in the directors array.
+- DIN format: exactly 8 numeric digits (e.g., 03363685, 00112233). Often labelled "DIN:" or
+  "(DIN-12345678)" near the director's printed name in the signature block.
 
 INDUSTRY TYPE — MUST MAP business description to one of these MCA classifications:
 - "Commercial and Industrial" → Use for ALL trading, retail, manufacturing, services, jewellery,
