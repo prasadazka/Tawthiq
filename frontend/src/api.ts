@@ -131,6 +131,53 @@ export interface XBRLGenerateBlobResult {
   elapsedSeconds: number;
 }
 
+export interface XMLValidationError {
+  code: string;
+  message: string;
+  line: number | null;
+  column?: number | null;
+  element?: string | null;
+}
+
+export interface XMLEmptyFact {
+  tag: string;
+  context_ref: string;
+  line: number;
+  raw_xml: string;
+}
+
+export interface XMLValidationResponse {
+  valid: boolean;
+  well_formed: boolean;
+  stats: { contexts: number; units: number; facts: number; empty_facts: number };
+  errors: XMLValidationError[];
+  warnings: XMLValidationError[];
+  empty_facts: XMLEmptyFact[];
+}
+
+export async function validateXBRLXML(xml: string): Promise<XMLValidationResponse> {
+  const res = await fetch(`${API_BASE}/api/xbrl/india/validate-xml`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ xml }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Validation failed" }));
+    throw new Error(err.detail || `Server error: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function downloadEditedXBRL(xml: string, filename: string): Promise<Blob> {
+  const res = await fetch(`${API_BASE}/api/xbrl/india/download-xml`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ xml, filename }),
+  });
+  if (!res.ok) throw new Error("Download failed");
+  return res.blob();
+}
+
 export async function generateIndianXBRL(
   file: File,
   skipValidation: boolean = false

@@ -8,10 +8,13 @@ from pathlib import Path
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 
+from pydantic import BaseModel
+
 from app.services.extractor import get_pdf_info
 from app.xbrl.extractor import XBRLDataExtractor
 from app.xbrl.generator import IndianXBRLGenerator
 from app.xbrl.validator import IndianXBRLValidator
+from app.xbrl.xml_validator import XBRLXMLValidator
 
 logger = logging.getLogger(__name__)
 
@@ -225,3 +228,58 @@ async def generate_xbrl_debug(
         "xbrl_xml_preview": gen_result.xml[:3000],
         "xbrl_xml_base64": base64.b64encode(gen_result.xml.encode("utf-16")).decode("ascii"),
     }
+
+
+# ─── XML editor support ───────────────────────────────────────────────────────
+
+class XMLValidationRequest(BaseModel):
+    xml: str
+
+
+@router.post("/validate-xml")
+async def validate_xml(req: XMLValidationRequest):
+    """Validate an XBRL XML document (after potential user edits).
+
+    Checks: XML well-formedness, required elements, context/unit references,
+    and lists facts with empty values that the user may want to fill in.
+    """
+    validator = XBRLXMLValidator()
+    report = validator.validate(req.xml)
+    return {
+        "valid": report.valid,
+        "well_formed": report.well_formed,
+        "stats": report.stats,
+        "errors": [
+            {
+                "code": i.code,
+                "message": i.message,
+                "line": i.line,
+                "column": i.column,
+                "element": i.element,
+            }
+            for i in report.errors
+        ],
+        "warnings": [
+            {"code": i.code, "message": i.message, "line": i.line}
+            for i in report.warnings
+        ],
+        "empty_facts": [
+            {"tag": e.tag, "context_ref": e.context_ref, "line": e.line, "raw_xml": e.raw_xml}
+            for e in report.empty_facts
+        ],
+    }
+
+
+class XMLDownloadRequest(BaseModel):
+    xml: str
+    filename: str = "output.xml"
+
+
+@router.post("/download-xml")
+async def download_xml(req: XMLDownloadRequest):
+    """Re-package edited XML as a downloadable UTF-16 file."""
+    xml_bytes = req.xml.encode("utf-16")
+    headers = {
+        "Content-Disposition": f'attachment; filename="{req.filename}"',
+    }
+    return Response(content=xml_bytes, media_type="application/xml", headers=headers)

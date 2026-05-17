@@ -7,39 +7,44 @@ schema_version: "1.0"
 country: india
 filing_type: "MCA / Companies Act"
 
+# NOTE: 'example' values below are GENERIC PLACEHOLDERS that show the data shape.
+# They are sent to Gemini as a JSON skeleton. Do NOT use real company values here —
+# the AI would bias toward them. Use neutral placeholders like <FROM_PDF> or
+# format-shape examples (e.g. "U#####XX####XXX######" for CIN format).
+
 # ─── COMPANY METADATA ─────────────────────────────────────────────────────────
 company:
   name:
     type: string
     required: true
     description: "Full legal name of the company as it appears in the filing"
-    example: "RAMSON AND GRANDSON JEWELLERS PRIVATE LIMITED"
+    example: "<COMPANY_NAME_FROM_PDF>"
 
   cin:
     type: string
     required: true
     pattern: "^[ULC]\\d{5}[A-Z]{2}\\d{4}[A-Z]{3}\\d{6}$"
     description: "Corporate Identification Number (21 chars). U/L/C + 5-digit NIC + 2-letter state + 4-digit year + 3-letter entity type + 6-digit ROC seq"
-    example: "U52393TG2011PTC072492"
+    example: "<CIN_FROM_PDF_21_CHARS>"
 
   pan:
     type: string
     required: false
     pattern: "^[A-Z]{5}\\d{4}[A-Z]$"
     description: "Permanent Account Number of the company (10 chars)"
-    example: "ABCDE1234F"
+    example: "<PAN_FROM_PDF_OR_NULL>"
 
   registered_address:
     type: string
     required: true
     description: "Full registered office address"
-    example: "5-9-43/5 & 6, BASHEERBAGH, HYDERABAD TG 500063 IN"
+    example: "<REGISTERED_OFFICE_ADDRESS_FROM_PDF>"
 
   state:
     type: string
     required: true
     description: "State / Union Territory of registered office"
-    example: "Telangana"
+    example: "<STATE_NAME_FROM_PDF>"
 
   industry_type:
     type: enum

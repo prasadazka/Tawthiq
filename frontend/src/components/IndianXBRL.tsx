@@ -1,5 +1,6 @@
 import { useState } from "react";
 import UploadZone from "./UploadZone";
+import XBRLEditor from "./XBRLEditor";
 import {
   extractIndianXBRL,
   generateIndianXBRL,
@@ -7,7 +8,7 @@ import {
   type XBRLValidationReport,
 } from "../api";
 
-type Stage = "idle" | "extracting" | "validated" | "generating" | "blocked" | "done" | "error";
+type Stage = "idle" | "extracting" | "validated" | "generating" | "blocked" | "editing" | "error";
 
 interface GeneratedFile {
   blob: Blob;
@@ -16,6 +17,7 @@ interface GeneratedFile {
   contextCount: number;
   warnings: number;
   elapsedSeconds: number;
+  xmlText: string;   // decoded UTF-16 text for editor
 }
 
 export default function IndianXBRL() {
@@ -61,10 +63,12 @@ export default function IndianXBRL() {
       const result = await generateIndianXBRL(pdfFile, forceSkip || skipValidation);
 
       if ("blob" in result) {
-        setGenerated(result);
-        setStage("done");
+        // Decode the UTF-16 XML so the editor can show it as text
+        const buf = await result.blob.arrayBuffer();
+        const xmlText = new TextDecoder("utf-16").decode(buf);
+        setGenerated({ ...result, xmlText });
+        setStage("editing");
       } else {
-        // Blocked by validation
         setValidationReport(result.validationReport);
         setStage("blocked");
       }
@@ -72,18 +76,6 @@ export default function IndianXBRL() {
       setError(err instanceof Error ? err.message : "Generation failed");
       setStage("error");
     }
-  };
-
-  const handleDownload = () => {
-    if (!generated) return;
-    const url = URL.createObjectURL(generated.blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = generated.filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
   const handleReset = () => {
@@ -222,14 +214,12 @@ export default function IndianXBRL() {
         />
       )}
 
-      {/* DONE — XBRL ready for download */}
-      {stage === "done" && generated && extractData && (
-        <DoneView
-          fileName={fileName}
-          generated={generated}
-          extractData={extractData}
-          onDownload={handleDownload}
-          onReset={handleReset}
+      {/* EDITING — review and edit XBRL before download */}
+      {stage === "editing" && generated && (
+        <XBRLEditor
+          originalXml={generated.xmlText}
+          filename={generated.filename}
+          onBack={handleReset}
         />
       )}
 
@@ -468,64 +458,3 @@ function BlockedView({
   );
 }
 
-function DoneView({
-  fileName,
-  generated,
-  extractData,
-  onDownload,
-  onReset,
-}: {
-  fileName: string;
-  generated: GeneratedFile;
-  extractData: XBRLExtractResponse;
-  onDownload: () => void;
-  onReset: () => void;
-}) {
-  return (
-    <div className="xbrl-done">
-      <div className="xbrl-done-icon">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2">
-          <path d="M9 12l2 2 4-4" /><circle cx="12" cy="12" r="10" />
-        </svg>
-      </div>
-      <h2>XBRL Generated Successfully</h2>
-      <p className="xbrl-done-sub">From <strong>{fileName}</strong></p>
-
-      <div className="xbrl-done-stats">
-        <div className="done-stat">
-          <strong>{generated.factCount}</strong>
-          <span>Tagged Facts</span>
-        </div>
-        <div className="done-stat">
-          <strong>{generated.contextCount}</strong>
-          <span>Contexts</span>
-        </div>
-        <div className="done-stat">
-          <strong>{(generated.blob.size / 1024).toFixed(1)} KB</strong>
-          <span>XML Size</span>
-        </div>
-        <div className="done-stat">
-          <strong>{extractData.timings.total_seconds}s</strong>
-          <span>Total Time</span>
-        </div>
-      </div>
-
-      <div className="xbrl-done-actions">
-        <button type="button" className="btn btn-primary btn-large" onClick={onDownload}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          Download {generated.filename}
-        </button>
-        <button type="button" className="btn btn-outline" onClick={onReset}>Generate Another</button>
-      </div>
-
-      <div className="xbrl-done-note">
-        <strong>Next step:</strong> Upload this XBRL file to the MCA iXBRL portal
-        (<code>mca.gov.in</code>) for filing. Format follows ICAI taxonomy 2016-03-31.
-      </div>
-    </div>
-  );
-}
