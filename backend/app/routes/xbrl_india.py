@@ -6,9 +6,11 @@ import time
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import Response
 
 from app.services.extractor import get_pdf_info
 from app.xbrl.extractor import XBRLDataExtractor
+from app.xbrl.generator import IndianXBRLGenerator
 from app.xbrl.validator import IndianXBRLValidator
 
 logger = logging.getLogger(__name__)
@@ -19,6 +21,8 @@ router = APIRouter(prefix="/api/xbrl/india", tags=["xbrl-india"])
 CONFIG_DIR = Path(__file__).parent.parent / "xbrl" / "india"
 EXTRACTION_SCHEMA = CONFIG_DIR / "extraction_schema.yml"
 VALIDATION_RULES = CONFIG_DIR / "validation_rules.yml"
+CONTEXT_TEMPLATE = CONFIG_DIR / "context_template.yml"
+TAXONOMY_MAPPING = CONFIG_DIR / "taxonomy_mapping.yml"
 
 
 @router.post("/extract")
@@ -96,4 +100,128 @@ async def extract_and_validate(file: UploadFile = File(...)):
                 for r in report.warnings
             ],
         },
+    }
+
+
+@router.post("/generate")
+async def generate_xbrl(
+    file: UploadFile = File(...),
+    skip_validation: bool = Form(False),
+):
+    """End-to-end: PDF → extract → validate → generate XBRL XML.
+
+    If validation passes (or skip_validation=true), returns the XBRL XML file
+    as a download. Otherwise returns the validation report as JSON.
+    """
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="File must be a PDF")
+
+    t_start = time.time()
+    pdf_bytes = await file.read()
+    doc_info = get_pdf_info(pdf_bytes)
+
+    # 1. Extract
+    extractor = XBRLDataExtractor(EXTRACTION_SCHEMA)
+    extract_result = extractor.extract(pdf_bytes, doc_info.get("full_text", ""))
+    if not extract_result.success:
+        raise HTTPException(status_code=500, detail=f"Extraction failed: {extract_result.error}")
+
+    # 2. Validate
+    validator = IndianXBRLValidator(VALIDATION_RULES)
+    report = validator.validate(extract_result.data)
+
+    if not report.passed and not skip_validation:
+        # Block — return failures as JSON
+        return {
+            "filename": file.filename,
+            "success": False,
+            "stage": "validation",
+            "ready_for_xbrl": False,
+            "validation": {
+                "passed": False,
+                "blocking_failures": [
+                    {"rule_id": r.rule_id, "name": r.name, "message": r.message}
+                    for r in report.blocking_failures
+                ],
+                "warnings": [
+                    {"rule_id": r.rule_id, "name": r.name, "message": r.message}
+                    for r in report.warnings
+                ],
+            },
+            "extraction_data": extract_result.data,
+            "hint": "Fix the blocking failures above, or retry with skip_validation=true.",
+        }
+
+    # 3. Generate XBRL
+    generator = IndianXBRLGenerator(CONTEXT_TEMPLATE, TAXONOMY_MAPPING)
+    gen_result = generator.generate(extract_result.data)
+    if not gen_result.success:
+        raise HTTPException(status_code=500, detail=f"XBRL generation failed: {gen_result.error}")
+
+    total_seconds = round(time.time() - t_start, 1)
+    logger.info(
+        f"XBRL generated for {file.filename}: {gen_result.fact_count} facts, "
+        f"{gen_result.context_count} contexts, {total_seconds}s"
+    )
+
+    # Return as downloadable XML (UTF-16 encoded, matching Indian convention)
+    xml_bytes = gen_result.xml.encode("utf-16")
+    headers = {
+        "Content-Disposition": f'attachment; filename="{gen_result.filename}"',
+        "X-Tawthiq-Facts": str(gen_result.fact_count),
+        "X-Tawthiq-Contexts": str(gen_result.context_count),
+        "X-Tawthiq-Validation-Passed": str(report.passed).lower(),
+        "X-Tawthiq-Warnings": str(len(report.warnings)),
+        "X-Tawthiq-Elapsed-Seconds": str(total_seconds),
+    }
+    return Response(content=xml_bytes, media_type="application/xml", headers=headers)
+
+
+@router.post("/generate-debug")
+async def generate_xbrl_debug(
+    file: UploadFile = File(...),
+    skip_validation: bool = Form(True),
+):
+    """Same as /generate but returns JSON (XML as base64) for inspection."""
+    import base64
+
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="File must be a PDF")
+
+    t_start = time.time()
+    pdf_bytes = await file.read()
+    doc_info = get_pdf_info(pdf_bytes)
+
+    extractor = XBRLDataExtractor(EXTRACTION_SCHEMA)
+    extract_result = extractor.extract(pdf_bytes, doc_info.get("full_text", ""))
+    if not extract_result.success:
+        return {"success": False, "error": extract_result.error}
+
+    validator = IndianXBRLValidator(VALIDATION_RULES)
+    report = validator.validate(extract_result.data)
+
+    generator = IndianXBRLGenerator(CONTEXT_TEMPLATE, TAXONOMY_MAPPING)
+    gen_result = generator.generate(extract_result.data)
+    if not gen_result.success:
+        return {"success": False, "error": gen_result.error}
+
+    return {
+        "success": True,
+        "filename": gen_result.filename,
+        "elapsed_seconds": round(time.time() - t_start, 1),
+        "validation": {
+            "passed": report.passed,
+            "summary": report.summary,
+            "blocking_failures": [
+                {"rule_id": r.rule_id, "message": r.message}
+                for r in report.blocking_failures
+            ],
+        },
+        "xbrl_stats": {
+            "fact_count": gen_result.fact_count,
+            "context_count": gen_result.context_count,
+            "xml_size_chars": len(gen_result.xml),
+        },
+        "xbrl_xml_preview": gen_result.xml[:3000],
+        "xbrl_xml_base64": base64.b64encode(gen_result.xml.encode("utf-16")).decode("ascii"),
     }
