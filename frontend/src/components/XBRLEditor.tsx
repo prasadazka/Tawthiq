@@ -53,10 +53,11 @@ export default function XBRLEditor({
   const [validation, setValidation] = useState<XMLValidationResponse | null>(null);
   const [validating, setValidating] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [activePanel, setActivePanel] = useState<"gaps" | "issues" | "empty" | "diff">("gaps");
+  const [activePanel, setActivePanel] = useState<"gaps" | "issues" | "placeholders" | "diff">("placeholders");
   const [flashLine, setFlashLine] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
+  const highlightLayerRef = useRef<HTMLDivElement>(null);
 
   // Auto-validate on first load
   useEffect(() => {
@@ -76,6 +77,29 @@ export default function XBRLEditor({
   }, [xml, originalXml]);
 
   const lineCount = useMemo(() => xml.split("\n").length, [xml]);
+
+  // Lines that still contain the placeholder text — the user needs to fill them.
+  const placeholderLines = useMemo(() => {
+    const set = new Set<number>();
+    xml.split("\n").forEach((line, idx) => {
+      if (line.includes("FILL VALUE HERE")) set.add(idx + 1);
+    });
+    return set;
+  }, [xml]);
+
+  // List of placeholder facts for the side panel (tag, line, context)
+  const placeholderFacts = useMemo(() => {
+    const re = /<(in-[a-z]+(?:-ent)?:\w+)\b[^>]*contextRef="([^"]+)"[^>]*>FILL VALUE HERE</g;
+    const out: Array<{ tag: string; contextRef: string; line: number }> = [];
+    xml.split("\n").forEach((line, idx) => {
+      let m: RegExpExecArray | null;
+      const r = new RegExp(re.source, "g");
+      while ((m = r.exec(line)) !== null) {
+        out.push({ tag: m[1], contextRef: m[2], line: idx + 1 });
+      }
+    });
+    return out;
+  }, [xml]);
 
   const runValidation = async (currentXml: string) => {
     setValidating(true);
@@ -157,11 +181,12 @@ export default function XBRLEditor({
     window.setTimeout(() => setFlashLine(null), 1500);
   };
 
-  // Sync line-number gutter scroll with textarea
+  // Sync line-number gutter + highlight layer with textarea scroll
   const handleScroll = () => {
-    if (textareaRef.current && lineNumbersRef.current) {
-      lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
-    }
+    const ta = textareaRef.current;
+    if (!ta) return;
+    if (lineNumbersRef.current) lineNumbersRef.current.scrollTop = ta.scrollTop;
+    if (highlightLayerRef.current) highlightLayerRef.current.scrollTop = ta.scrollTop;
   };
 
   const errorCount = validation?.errors.length ?? 0;
@@ -195,14 +220,6 @@ export default function XBRLEditor({
       .filter((t) => t.includes(":"));
   };
 
-  // Whether we can SAFELY auto-insert a tag for this hint (single, non-structural)
-  const isInsertableHint = (rawTag: string): boolean => {
-    const tags = parseTagList(rawTag);
-    if (tags.length !== 1) return false;
-    if (tags[0].startsWith("xbrli:")) return false;   // entity/identifier — not a fact
-    return true;
-  };
-
   // Find the first line in the XML matching ANY tag from the hint (optionally
   // constrained to a contextRef). Returns 0 if none found.
   const findHintInXml = (rawTag: string, context: string): { line: number; tag: string } => {
@@ -226,56 +243,11 @@ export default function XBRLEditor({
     return { line: 0, tag: "" };
   };
 
-  // Backwards-compatible name used in the JSX render below
+  // Look up the line number where a given hint (tag + context) appears in the
+  // template-driven XBRL.  The new flow only ever jumps — never inserts —
+  // because the template already contains every tag.
   const findExistingTagLine = (rawTag: string, context: string): number =>
     findHintInXml(rawTag, context).line;
-
-  const extractInsertableTag = (rawTag: string): string | null =>
-    isInsertableHint(rawTag) ? parseTagList(rawTag)[0] : null;
-
-  const handleGapClick = (hint: { tag: string; context: string }) => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-
-    // 1. If any matching tag is already in the XML, jump to it
-    const found = findHintInXml(hint.tag, hint.context);
-    if (found.line > 0) {
-      jumpToLine(found.line);
-      return;
-    }
-
-    // 2. Single insertable tag missing → add a placeholder at end of document
-    if (!isInsertableHint(hint.tag)) {
-      // Truly nothing to insert (e.g., xbrli:identifier missing entirely → file is broken)
-      window.alert(
-        `Could not locate any of these tags in the XML: ${hint.tag}. ` +
-        `The XML may be malformed — check the Issues tab.`
-      );
-      return;
-    }
-    const tagOnly = parseTagList(hint.tag)[0];
-
-    const snippet = `\n    <${tagOnly} contextRef="${hint.context}">FILL_VALUE_HERE</${tagOnly}>`;
-    const closeIdx = xml.lastIndexOf("</xbrli:xbrl>");
-    const insertAt = closeIdx > 0 ? closeIdx : xml.length;
-    const newXml = xml.slice(0, insertAt) + snippet + "\n" + xml.slice(insertAt);
-    setXml(newXml);
-
-    const placeholderPos = insertAt + snippet.indexOf("FILL_VALUE_HERE");
-    window.setTimeout(() => {
-      ta.focus();
-      ta.setSelectionRange(placeholderPos, placeholderPos + "FILL_VALUE_HERE".length);
-      const line = newXml.slice(0, placeholderPos).split("\n").length;
-      const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 18;
-      ta.scrollTop = Math.max(0, (line - 1) * lineHeight - ta.clientHeight / 2);
-      if (lineNumbersRef.current) lineNumbersRef.current.scrollTop = ta.scrollTop;
-      setFlashLine(line);
-      window.setTimeout(() => setFlashLine(null), 1500);
-    }, 50);
-  };
-
-  // Keep the old name as an alias so the render code below doesn't change.
-  const insertPlaceholderTag = handleGapClick;
 
   return (
     <div className="xbrl-editor">
@@ -329,8 +301,11 @@ export default function XBRLEditor({
         <div className={`status-pill ${warningCount === 0 ? "status-ok" : "status-warn"}`}>
           {warningCount} warning{warningCount !== 1 && "s"}
         </div>
+        <div className={`status-pill ${placeholderLines.size === 0 ? "status-ok" : "status-warn"}`}>
+          {placeholderLines.size} placeholder{placeholderLines.size !== 1 && "s"}
+        </div>
         <div className={`status-pill ${emptyCount === 0 ? "status-ok" : "status-warn"}`}>
-          {emptyCount} empty field{emptyCount !== 1 && "s"}
+          {emptyCount} empty
         </div>
         <div className={`status-pill ${changedLines.size === 0 ? "status-info" : "status-edit"}`}>
           {changedLines.size} edited line{changedLines.size !== 1 && "s"}
@@ -348,6 +323,7 @@ export default function XBRLEditor({
           <div className="editor-line-numbers" ref={lineNumbersRef}>
             {Array.from({ length: lineCount }, (_, i) => i + 1).map((n) => {
               const classes = ["ln-row"];
+              if (placeholderLines.has(n)) classes.push("ln-placeholder");
               if (changedLines.has(n)) classes.push("ln-edited");
               if (flashLine === n) classes.push("ln-flash");
               return (
@@ -357,20 +333,37 @@ export default function XBRLEditor({
               );
             })}
           </div>
-          <textarea
-            ref={textareaRef}
-            className="editor-textarea"
-            aria-label="XBRL XML editor"
-            value={xml}
-            onChange={(e) => setXml(e.target.value)}
-            onScroll={handleScroll}
-            spellCheck={false}
-            wrap="off"
-          />
+          <div className="editor-text-wrap">
+            <div className="editor-highlight-layer" ref={highlightLayerRef} aria-hidden="true">
+              {xml.split("\n").map((line, idx) => (
+                <div
+                  key={idx}
+                  className={`hl-row ${line.includes("FILL VALUE HERE") ? "hl-placeholder" : ""}`}
+                >&nbsp;</div>
+              ))}
+            </div>
+            <textarea
+              ref={textareaRef}
+              className="editor-textarea"
+              aria-label="XBRL XML editor"
+              value={xml}
+              onChange={(e) => setXml(e.target.value)}
+              onScroll={handleScroll}
+              spellCheck={false}
+              wrap="off"
+            />
+          </div>
         </div>
 
         <div className="editor-side">
           <div className="side-tabs">
+            <button
+              type="button"
+              className={`side-tab ${activePanel === "placeholders" ? "side-tab-active" : ""}`}
+              onClick={() => setActivePanel("placeholders")}
+            >
+              To Fill ({placeholderFacts.length})
+            </button>
             <button
               type="button"
               className={`side-tab ${activePanel === "gaps" ? "side-tab-active" : ""}`}
@@ -384,13 +377,6 @@ export default function XBRLEditor({
               onClick={() => setActivePanel("issues")}
             >
               XML ({errorCount + warningCount})
-            </button>
-            <button
-              type="button"
-              className={`side-tab ${activePanel === "empty" ? "side-tab-active" : ""}`}
-              onClick={() => setActivePanel("empty")}
-            >
-              Empty ({emptyCount})
             </button>
             <button
               type="button"
@@ -409,13 +395,13 @@ export default function XBRLEditor({
                 )}
                 {mcaGaps.length > 0 && (
                   <p className="side-help">
-                    These fields couldn't be extracted from the PDF. Click any item to insert a
-                    placeholder tag in the XML at your cursor position, then type the value.
+                    These MCA rules failed during extraction. The XBRL template already contains
+                    the corresponding tag — click to jump and replace "FILL VALUE HERE" with the
+                    correct value.
                   </p>
                 )}
                 {mcaGaps.map((g) => {
                   const existingLine = g.hint ? findExistingTagLine(g.hint.tag, g.hint.context) : 0;
-                  const canInsert = g.hint && extractInsertableTag(g.hint.tag) !== null;
                   return (
                     <div className="gap-item" key={g.rule_id}>
                       <div className="gap-head">
@@ -434,18 +420,15 @@ export default function XBRLEditor({
                             <span className="gap-tag-label">context:</span>
                             <code className="gap-tag">{g.hint.context}</code>
                           </div>
-                          <p className="gap-placement">{g.hint.placement}</p>
-                          <button
-                            type="button"
-                            className="gap-insert-btn"
-                            onClick={() => insertPlaceholderTag(g.hint!)}
-                          >
-                            {existingLine > 0
-                              ? `→ Jump to line ${existingLine}`
-                              : canInsert
-                              ? "+ Insert placeholder tag"
-                              : "Find in XML"}
-                          </button>
+                          {existingLine > 0 && (
+                            <button
+                              type="button"
+                              className="gap-insert-btn"
+                              onClick={() => jumpToLine(existingLine)}
+                            >
+                              → Jump to line {existingLine}
+                            </button>
+                          )}
                         </>
                       )}
                     </div>
@@ -487,25 +470,34 @@ export default function XBRLEditor({
               </>
             )}
 
-            {activePanel === "empty" && (
+            {activePanel === "placeholders" && (
               <>
-                {emptyCount === 0 && (
-                  <p className="side-ok">No empty fields — every tagged fact has a value.</p>
+                {placeholderFacts.length === 0 && (
+                  <p className="side-ok">No placeholders — every tag has a value.</p>
                 )}
-                {validation?.empty_facts.map((f, i) => (
+                {placeholderFacts.length > 0 && (
+                  <p className="side-help">
+                    Every yellow-highlighted line below contains "FILL VALUE HERE" — click to
+                    jump to the line and replace the placeholder with the correct value.
+                  </p>
+                )}
+                {placeholderFacts.slice(0, 200).map((f, i) => (
                   <button
                     type="button"
-                    key={`f${i}`}
+                    key={`p${i}`}
                     className="empty-item"
                     onClick={() => jumpToLine(f.line)}
                   >
                     <div className="empty-tag">{f.tag}</div>
                     <div className="empty-meta">
-                      <span className="empty-ctx">{f.context_ref}</span>
+                      <span className="empty-ctx">{f.contextRef}</span>
                       <span className="empty-line">line {f.line}</span>
                     </div>
                   </button>
                 ))}
+                {placeholderFacts.length > 200 && (
+                  <p className="side-help">…and {placeholderFacts.length - 200} more</p>
+                )}
               </>
             )}
 

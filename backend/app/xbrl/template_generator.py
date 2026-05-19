@@ -32,8 +32,14 @@ class XBRLResult:
     filename: str = ""
     fact_count: int = 0
     facts_filled: int = 0
+    facts_placeholder: int = 0   # number of tags filled with FILL_VALUE_HERE
     context_count: int = 0
     error: str = ""
+
+
+# Placeholder text written into tags when no value is available.
+# The frontend highlights any line containing this exact string.
+PLACEHOLDER = "FILL VALUE HERE"
 
 
 # ── value lookup ─────────────────────────────────────────────────────────────
@@ -328,14 +334,13 @@ def generate_xbrl(data: dict, filename_base: str = "tawthiq_xbrl") -> XBRLResult
         with open(TEMPLATE_XBRL_PATH, "r", encoding="utf-16") as f:
             xml = f.read()
 
-        # 1. Replace empty entity identifier with extracted CIN (everywhere)
-        cin = _get(data, "company.cin")
-        if cin:
-            xml = re.sub(
-                r'(<xbrli:identifier scheme="http://www\.mca\.gov\.in/CIN">)(</xbrli:identifier>)',
-                lambda m: m.group(1) + str(cin) + m.group(2),
-                xml,
-            )
+        # 1. Replace empty entity identifier with extracted CIN (or placeholder)
+        cin = _get(data, "company.cin") or PLACEHOLDER
+        xml = re.sub(
+            r'(<xbrli:identifier scheme="http://www\.mca\.gov\.in/CIN">)(</xbrli:identifier>)',
+            lambda m: m.group(1) + str(cin) + m.group(2),
+            xml,
+        )
 
         # 2. Walk every empty fact tag and try to fill from JSON
         fact_pattern = re.compile(
@@ -344,10 +349,11 @@ def generate_xbrl(data: dict, filename_base: str = "tawthiq_xbrl") -> XBRLResult
         )
 
         facts_filled = 0
+        facts_placeholder = 0
         facts_total = 0
 
         def fill_fact(m: re.Match) -> str:
-            nonlocal facts_filled, facts_total
+            nonlocal facts_filled, facts_placeholder, facts_total
             facts_total += 1
             prefix = m.group(1)
             local = m.group(2)
@@ -357,7 +363,8 @@ def generate_xbrl(data: dict, filename_base: str = "tawthiq_xbrl") -> XBRLResult
             full_open = m.group(0)[: -(len(f"</{prefix}:{local}>"))]
             close = f"</{prefix}:{local}>"
             if value is None or value == "":
-                return full_open + close
+                facts_placeholder += 1
+                return full_open + PLACEHOLDER + close
             facts_filled += 1
             return full_open + _format_value(value) + close
 
@@ -388,6 +395,7 @@ def generate_xbrl(data: dict, filename_base: str = "tawthiq_xbrl") -> XBRLResult
             filename=filename,
             fact_count=len(all_facts),
             facts_filled=facts_filled,
+            facts_placeholder=facts_placeholder,
             context_count=context_count,
         )
     except Exception as exc:

@@ -1587,6 +1587,57 @@
   border-radius: 3px;
 }
 
+.ln-row.ln-placeholder {
+  color: #92400e;
+  font-weight: 600;
+  background: #fef9c3;
+  border-radius: 3px;
+}
+
+/* ───── Highlight layer behind the textarea ──────────────────────────────── */
+
+.editor-text-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.editor-highlight-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  white-space: pre;
+  color: transparent;
+}
+
+.editor-highlight-layer .hl-row {
+  height: 1.5em;
+  white-space: pre;
+  background: transparent;
+}
+
+.editor-highlight-layer .hl-row.hl-placeholder {
+  background: #fef9c3;          /* pale yellow */
+  box-shadow: inset 3px 0 0 0 #facc15;  /* amber left bar */
+}
+
+.editor-text-wrap .editor-textarea {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+  width: 100%;
+  height: 100%;
+}
+
 .ln-row.ln-flash {
   animation: ln-flash-anim 1.4s ease-out;
 }
