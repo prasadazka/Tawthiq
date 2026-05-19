@@ -31,8 +31,9 @@ class XBRLResult:
     xml: str = ""
     filename: str = ""
     fact_count: int = 0
-    facts_filled: int = 0
-    facts_placeholder: int = 0   # number of tags filled with FILL_VALUE_HERE
+    facts_filled: int = 0           # had a real extracted value
+    facts_zero_defaulted: int = 0   # numeric fact, no extraction → defaulted to 0
+    facts_placeholder: int = 0      # text fact, no extraction → 'FILL VALUE HERE'
     context_count: int = 0
     error: str = ""
 
@@ -122,28 +123,67 @@ _bs_pairs = [
 for tag, path_template in _bs_pairs:
     SIMPLE_MAP.update(_bs_pair(path_template, tag))
 
-# ─── P&L (D_CY / D_PY) ──────────────────────────────────────────────────────
+# ─── P&L — both CY+PY pairs auto-generated via helpers ──────────────────────
+def _pnl_pair(tag: str, path_template: str) -> dict:
+    return {
+        (tag, "D_CY"): path_template.replace("$YEAR", "current_year"),
+        (tag, "D_PY"): path_template.replace("$YEAR", "prior_year"),
+    }
+
+_pnl_pairs = [
+    # RevenueFromSaleOfProducts / Services are distinct subtotals — by default we
+    # put the whole revenue under SaleOfProducts (since we extract a single revenue line)
+    # and leave SaleOfServices to default to 0.
+    ("in-gaap:RevenueFromOperations",                         "profit_loss.$YEAR.revenue_from_operations"),
+    ("in-gaap:RevenueFromSaleOfProducts",                     "profit_loss.$YEAR.revenue_from_operations"),
+    ("in-gaap:RevenueFromOperationsOtherThanFinanceCompany",  "profit_loss.$YEAR.revenue_from_operations"),
+    # RevenueFromSaleOfServices intentionally NOT aliased — defaults to 0
+    ("in-gaap:OtherIncome",                                   "profit_loss.$YEAR.other_income"),
+    ("in-gaap:Revenue",                                       "profit_loss.$YEAR.total_revenue"),
+    # Cost of materials / stock-in-trade
+    ("in-gaap:CostOfMaterialsConsumed",                       "profit_loss.$YEAR.expenses.cost_of_materials_consumed"),
+    ("in-gaap:PurchaseOfStockInTrade",                        "profit_loss.$YEAR.expenses.purchases_of_stock_in_trade"),
+    ("in-gaap:PurchasesOfStockInTrade",                       "profit_loss.$YEAR.expenses.purchases_of_stock_in_trade"),
+    ("in-gaap:ChangesInInventoriesOfFinishedGoodsWorkInProgressAndStockInTrade",
+                                                              "profit_loss.$YEAR.expenses.changes_in_inventories"),
+    ("in-gaap:EmployeeBenefitExpense",                        "profit_loss.$YEAR.expenses.employee_benefits_expense"),
+    ("in-gaap:EmployeeBenefitsExpense",                       "profit_loss.$YEAR.expenses.employee_benefits_expense"),
+    ("in-gaap:FinanceCosts",                                  "profit_loss.$YEAR.expenses.finance_costs"),
+    # Depreciation — multiple aliases
+    ("in-gaap:DepreciationAmortisationAndDepletionExpense",   "profit_loss.$YEAR.expenses.depreciation_amortisation"),
+    ("in-gaap:DepreciationExpense",                           "profit_loss.$YEAR.expenses.depreciation_amortisation"),
+    ("in-gaap:DepreciationDepletionAndAmortisationExpense",   "profit_loss.$YEAR.expenses.depreciation_amortisation"),
+    ("in-gaap:AmortisationExpense",                           "profit_loss.$YEAR.expenses.depreciation_amortisation"),
+    ("in-gaap:OtherExpenses",                                 "profit_loss.$YEAR.expenses.other_expenses"),
+    ("in-gaap:Expenses",                                      "profit_loss.$YEAR.expenses.total_expenses"),
+    # Profit before tax — multiple aliases
+    ("in-gaap:ProfitBeforeTax",                               "profit_loss.$YEAR.profit_before_tax"),
+    ("in-gaap:ProfitBeforeExtraordinaryItemsAndTax",          "profit_loss.$YEAR.profit_before_tax"),
+    ("in-gaap:ProfitBeforePriorPeriodItemsExceptionalItemsExtraordinaryItemsAndTax",
+                                                              "profit_loss.$YEAR.profit_before_tax"),
+    # Tax
+    ("in-gaap:TaxExpense",                                    "profit_loss.$YEAR.tax_expense.total_tax_expense"),
+    ("in-gaap:CurrentTax",                                    "profit_loss.$YEAR.tax_expense.current_tax"),
+    ("in-gaap:DeferredTax",                                   "profit_loss.$YEAR.tax_expense.deferred_tax"),
+    # Profit for period — aliases
+    ("in-gaap:ProfitLossForPeriod",                           "profit_loss.$YEAR.profit_for_period"),
+    ("in-gaap:ProfitLossForPeriodFromContinuingOperations",   "profit_loss.$YEAR.profit_for_period"),
+    ("in-gaap:ProfitLossForPeriodBeforeMinorityInterest",     "profit_loss.$YEAR.profit_for_period"),
+    # EPS — multiple spellings
+    ("in-gaap:BasicEarningsPerShare",                         "profit_loss.$YEAR.earnings_per_share.basic"),
+    ("in-gaap:BasicEarningPerEquityShare",                    "profit_loss.$YEAR.earnings_per_share.basic"),
+    ("in-gaap:BasicEarningsLossPerShareFromContinuingAndDiscontinuedOperations",
+                                                              "profit_loss.$YEAR.earnings_per_share.basic"),
+    ("in-gaap:DilutedEarningsPerShare",                       "profit_loss.$YEAR.earnings_per_share.diluted"),
+    ("in-gaap:DilutedEarningsPerEquityShare",                 "profit_loss.$YEAR.earnings_per_share.diluted"),
+    ("in-gaap:DilutedEarningsLossPerShareFromContinuingAndDiscontinuedOperations",
+                                                              "profit_loss.$YEAR.earnings_per_share.diluted"),
+]
+for tag, path_template in _pnl_pairs:
+    SIMPLE_MAP.update(_pnl_pair(tag, path_template))
+
+# ─── Cash Flow ──────────────────────────────────────────────────────────────
 SIMPLE_MAP.update({
-    ("in-gaap:RevenueFromOperations", "D_CY"): "profit_loss.current_year.revenue_from_operations",
-    ("in-gaap:OtherIncome", "D_CY"): "profit_loss.current_year.other_income",
-    ("in-gaap:Revenue", "D_CY"): "profit_loss.current_year.total_revenue",
-    ("in-gaap:CostOfMaterialsConsumed", "D_CY"): "profit_loss.current_year.expenses.cost_of_materials_consumed",
-    ("in-gaap:PurchaseOfStockInTrade", "D_CY"): "profit_loss.current_year.expenses.purchases_of_stock_in_trade",
-    ("in-gaap:ChangesInInventoriesOfFinishedGoodsWorkInProgressAndStockInTrade", "D_CY"): "profit_loss.current_year.expenses.changes_in_inventories",
-    ("in-gaap:EmployeeBenefitExpense", "D_CY"): "profit_loss.current_year.expenses.employee_benefits_expense",
-    ("in-gaap:FinanceCosts", "D_CY"): "profit_loss.current_year.expenses.finance_costs",
-    ("in-gaap:DepreciationAmortisationAndDepletionExpense", "D_CY"): "profit_loss.current_year.expenses.depreciation_amortisation",
-    ("in-gaap:OtherExpenses", "D_CY"): "profit_loss.current_year.expenses.other_expenses",
-    ("in-gaap:ProfitBeforeTax", "D_CY"): "profit_loss.current_year.profit_before_tax",
-    ("in-gaap:TaxExpense", "D_CY"): "profit_loss.current_year.tax_expense.total_tax_expense",
-    ("in-gaap:CurrentTax", "D_CY"): "profit_loss.current_year.tax_expense.current_tax",
-    ("in-gaap:ProfitLossForPeriod", "D_CY"): "profit_loss.current_year.profit_for_period",
-    ("in-gaap:RevenueFromOperations", "D_PY"): "profit_loss.prior_year.revenue_from_operations",
-    ("in-gaap:OtherIncome", "D_PY"): "profit_loss.prior_year.other_income",
-    ("in-gaap:Revenue", "D_PY"): "profit_loss.prior_year.total_revenue",
-    ("in-gaap:ProfitBeforeTax", "D_PY"): "profit_loss.prior_year.profit_before_tax",
-    ("in-gaap:ProfitLossForPeriod", "D_PY"): "profit_loss.prior_year.profit_for_period",
-    # ─── Cash Flow ─────────────────────────────────────────────────────────
     ("in-gaap:CashFlowsFromUsedInOperatingActivities", "D_CY"): "cash_flow.current_year.cash_from_operating_activities",
     ("in-gaap:CashFlowsFromUsedInInvestingActivities", "D_CY"): "cash_flow.current_year.cash_from_investing_activities",
     ("in-gaap:CashFlowsFromUsedInFinancingActivities", "D_CY"): "cash_flow.current_year.cash_from_financing_activities",
@@ -273,6 +313,54 @@ def _resolve_value(tag: str, ctx_ref: str, data: dict) -> Any:
         if total > 0:
             return total
 
+    # 1d. Cash flow indirect-method adjustments — computed from existing data
+    if ctx_ref in ("D_CY", "D_PY"):
+        year = "current_year" if ctx_ref == "D_CY" else "prior_year"
+        # Depreciation adjustment = same as depreciation expense
+        if tag in (
+            "in-gaap:AdjustmentsForDepreciationAndAmortisationExpense",
+            "in-gaap:AdjustmentsToProfitLoss",
+        ):
+            v = _get(data, f"profit_loss.{year}.expenses.depreciation_amortisation")
+            if v is not None:
+                return v
+        # Working-capital adjustments: PY - CY (negative if asset increased / liability decreased)
+        def _adj(asset_path: str, sign: int = 1) -> Any:
+            cy = _get(data, f"balance_sheet.current_year.{asset_path}") or 0
+            py = _get(data, f"balance_sheet.prior_year.{asset_path}") or 0
+            return sign * (py - cy)
+        adj_map = {
+            "in-gaap:AdjustmentsForDecreaseIncreaseInInventories":
+                "assets.current_assets.inventories",
+            "in-gaap:AdjustmentsForDecreaseIncreaseInTradeReceivables":
+                "assets.current_assets.trade_receivables",
+            "in-gaap:AdjustmentsForDecreaseIncreaseInOtherCurrentAssets":
+                "assets.current_assets.other_current_assets",
+            "in-gaap:AdjustmentsForDecreaseIncreaseInLoansAndAdvances":
+                "assets.current_assets.short_term_loans_and_advances",
+        }
+        if tag in adj_map and ctx_ref == "D_CY":
+            return _adj(adj_map[tag])
+        # Liability-side: CY - PY (positive if liability increased)
+        liab_adj_map = {
+            "in-gaap:AdjustmentsForIncreaseDecreaseInTradePayables":
+                "equity_and_liabilities.current_liabilities.trade_payables",
+            "in-gaap:AdjustmentsForIncreaseDecreaseInOtherCurrentLiabilities":
+                "equity_and_liabilities.current_liabilities.other_current_liabilities",
+        }
+        if tag in liab_adj_map and ctx_ref == "D_CY":
+            return _adj(liab_adj_map[tag], sign=-1)
+
+    # 1e. NominalValueOfPerEquityShare — Indian par value typically Rs. 10
+    if tag == "in-gaap:NominalValueOfPerEquityShare":
+        # Try to derive from authorized share capital if present
+        classes = _get(data, "share_capital.authorized.classes") or []
+        if classes and isinstance(classes, list) and isinstance(classes[0], dict):
+            fv = classes[0].get("face_value")
+            if fv is not None:
+                return fv
+        return 10  # standard Indian par value default
+
     # 2. Dimensional patterns (regex on contextRef)
     for dim_tag, regex, path_template in DIMENSIONAL_MAP:
         if dim_tag != tag:
@@ -320,7 +408,11 @@ def _format_value(value: Any) -> str:
         return f"{value:.2f}"
     if isinstance(value, (int,)):
         return str(value)
-    return str(value)
+    # XML-escape text values so '&', '<', '>' don't break the document
+    s = str(value)
+    return (s.replace("&", "&amp;")
+             .replace("<", "&lt;")
+             .replace(">", "&gt;"))
 
 
 # ── public generator ─────────────────────────────────────────────────────────
@@ -350,23 +442,39 @@ def generate_xbrl(data: dict, filename_base: str = "tawthiq_xbrl") -> XBRLResult
 
         facts_filled = 0
         facts_placeholder = 0
+        facts_zero_defaulted = 0
         facts_total = 0
 
+        # Numeric units that mean "this is a number — default to 0 if missing"
+        NUMERIC_UNITS = {"INR", "shares", "pure", "INRPerShare"}
+
         def fill_fact(m: re.Match) -> str:
-            nonlocal facts_filled, facts_placeholder, facts_total
+            nonlocal facts_filled, facts_placeholder, facts_zero_defaulted, facts_total
             facts_total += 1
             prefix = m.group(1)
             local = m.group(2)
-            tag = f"{prefix}:{local}"
+            attrs_before = m.group(3) or ""
             ctx_ref = m.group(4)
+            attrs_after = m.group(5) or ""
+            tag = f"{prefix}:{local}"
             value = _resolve_value(tag, ctx_ref, data)
             full_open = m.group(0)[: -(len(f"</{prefix}:{local}>"))]
             close = f"</{prefix}:{local}>"
-            if value is None or value == "":
-                facts_placeholder += 1
-                return full_open + PLACEHOLDER + close
-            facts_filled += 1
-            return full_open + _format_value(value) + close
+
+            if value is not None and value != "":
+                facts_filled += 1
+                return full_open + _format_value(value) + close
+
+            # Determine whether this is a numeric fact (has a numeric unitRef)
+            unit_match = re.search(r'unitRef="([^"]+)"', attrs_before + attrs_after)
+            if unit_match and unit_match.group(1) in NUMERIC_UNITS:
+                # Numeric fact, no value extracted — default to 0 (matches reference convention)
+                facts_zero_defaulted += 1
+                return full_open + "0" + close
+
+            # Non-numeric (text) fact with no value — keep visible placeholder
+            facts_placeholder += 1
+            return full_open + PLACEHOLDER + close
 
         # First pass: empty facts (no content)
         xml = fact_pattern.sub(fill_fact, xml)
@@ -395,6 +503,7 @@ def generate_xbrl(data: dict, filename_base: str = "tawthiq_xbrl") -> XBRLResult
             filename=filename,
             fact_count=len(all_facts),
             facts_filled=facts_filled,
+            facts_zero_defaulted=facts_zero_defaulted,
             facts_placeholder=facts_placeholder,
             context_count=context_count,
         )
