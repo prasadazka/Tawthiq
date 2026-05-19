@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from app.services.extractor import get_pdf_info
 from app.xbrl.excel_generator import generate_excel
 from app.xbrl.extractor import XBRLDataExtractor
-from app.xbrl.generator import IndianXBRLGenerator
+from app.xbrl.template_generator import generate_xbrl as generate_xbrl_from_template
 from app.xbrl.validator import IndianXBRLValidator
 from app.xbrl.xml_validator import XBRLXMLValidator
 
@@ -157,14 +157,13 @@ async def generate_xbrl(
         }
 
     # 3. Generate XBRL
-    generator = IndianXBRLGenerator(CONTEXT_TEMPLATE, TAXONOMY_MAPPING)
-    gen_result = generator.generate(extract_result.data)
+    gen_result = generate_xbrl_from_template(extract_result.data)
     if not gen_result.success:
         raise HTTPException(status_code=500, detail=f"XBRL generation failed: {gen_result.error}")
 
     total_seconds = round(time.time() - t_start, 1)
     logger.info(
-        f"XBRL generated for {file.filename}: {gen_result.fact_count} facts, "
+        f"XBRL generated for {file.filename}: {gen_result.facts_filled}/{gen_result.fact_count} facts filled, "
         f"{gen_result.context_count} contexts, {total_seconds}s"
     )
 
@@ -172,7 +171,7 @@ async def generate_xbrl(
     xml_bytes = gen_result.xml.encode("utf-16")
     headers = {
         "Content-Disposition": f'attachment; filename="{gen_result.filename}"',
-        "X-Tawthiq-Facts": str(gen_result.fact_count),
+        "X-Tawthiq-Facts": f"{gen_result.facts_filled}/{gen_result.fact_count}",
         "X-Tawthiq-Contexts": str(gen_result.context_count),
         "X-Tawthiq-Validation-Passed": str(report.passed).lower(),
         "X-Tawthiq-Warnings": str(len(report.warnings)),
@@ -204,8 +203,7 @@ async def generate_xbrl_debug(
     validator = IndianXBRLValidator(VALIDATION_RULES)
     report = validator.validate(extract_result.data)
 
-    generator = IndianXBRLGenerator(CONTEXT_TEMPLATE, TAXONOMY_MAPPING)
-    gen_result = generator.generate(extract_result.data)
+    gen_result = generate_xbrl_from_template(extract_result.data)
     if not gen_result.success:
         return {"success": False, "error": gen_result.error}
 
@@ -223,6 +221,7 @@ async def generate_xbrl_debug(
         },
         "xbrl_stats": {
             "fact_count": gen_result.fact_count,
+            "facts_filled": gen_result.facts_filled,
             "context_count": gen_result.context_count,
             "xml_size_chars": len(gen_result.xml),
         },
