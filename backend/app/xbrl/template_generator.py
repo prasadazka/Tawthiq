@@ -49,9 +49,15 @@ def _get(data: dict, path: str) -> Any:
     return cur if cur is not None else None
 
 
-# (tag, context_pattern) → JSON path.  Contexts that include an index (e.g.,
-# shareholders Tab_*_309_1, Tab_*_309_2, …) use {idx} as a wildcard captured
-# into the JSON path via shareholders[{idx-1}].fieldname.
+# Helper: build CY+PY pairs for the same JSON path
+def _bs_pair(json_path_base: str, tag: str) -> dict:
+    """Returns {(tag, 'I_CY'): cy_path, (tag, 'I_PY'): py_path}."""
+    return {
+        (tag, "I_CY"): json_path_base.replace("$YEAR", "current_year"),
+        (tag, "I_PY"): json_path_base.replace("$YEAR", "prior_year"),
+    }
+
+# (tag, context_pattern) → JSON path.
 SIMPLE_MAP: dict[tuple[str, str], str] = {
     # ─── Company / metadata (in-ca) ─────────────────────────────────────────
     ("in-ca:NameOfCompany", "D_CY"): "company.name",
@@ -75,36 +81,43 @@ SIMPLE_MAP: dict[tuple[str, str], str] = {
     # ─── Board approval ─────────────────────────────────────────────────────
     ("in-ca:DateOfBoardMeetingWhenFinalAccountsWereApproved", "D_CY"): "board_approval.date_of_board_meeting",
     ("in-ca:DateOfSigningOfBalanceSheetByDirectors", "D_CY"): "board_approval.date_of_signing_balance_sheet",
-    # ─── Balance Sheet — Current Year (I_CY) ────────────────────────────────
-    ("in-gaap:ShareCapital", "I_CY"): "balance_sheet.current_year.equity_and_liabilities.share_capital",
-    ("in-gaap:Reserves", "I_CY"): "balance_sheet.current_year.equity_and_liabilities.reserves_and_surplus",
-    ("in-gaap:LongTermBorrowings", "I_CY"): "balance_sheet.current_year.equity_and_liabilities.non_current_liabilities.long_term_borrowings",
-    ("in-gaap:DeferredTaxLiabilities", "I_CY"): "balance_sheet.current_year.equity_and_liabilities.non_current_liabilities.deferred_tax_liabilities",
-    ("in-gaap:ShortTermBorrowings", "I_CY"): "balance_sheet.current_year.equity_and_liabilities.current_liabilities.short_term_borrowings",
-    ("in-gaap:TradePayables", "I_CY"): "balance_sheet.current_year.equity_and_liabilities.current_liabilities.trade_payables",
-    ("in-gaap:OtherCurrentLiabilities", "I_CY"): "balance_sheet.current_year.equity_and_liabilities.current_liabilities.other_current_liabilities",
-    ("in-gaap:ShortTermProvisions", "I_CY"): "balance_sheet.current_year.equity_and_liabilities.current_liabilities.short_term_provisions",
-    ("in-gaap:TangibleAssets", "I_CY"): "balance_sheet.current_year.assets.non_current_assets.tangible_assets",
-    ("in-gaap:IntangibleAssets", "I_CY"): "balance_sheet.current_year.assets.non_current_assets.intangible_assets",
-    ("in-gaap:NonCurrentInvestments", "I_CY"): "balance_sheet.current_year.assets.non_current_assets.non_current_investments",
-    ("in-gaap:DeferredTaxAssets", "I_CY"): "balance_sheet.current_year.assets.non_current_assets.deferred_tax_assets",
-    ("in-gaap:Inventories", "I_CY"): "balance_sheet.current_year.assets.current_assets.inventories",
-    ("in-gaap:TradeReceivables", "I_CY"): "balance_sheet.current_year.assets.current_assets.trade_receivables",
-    ("in-gaap:CashAndBankBalances", "I_CY"): "balance_sheet.current_year.assets.current_assets.cash_and_bank_balances",
-    ("in-gaap:ShortTermLoansAndAdvances", "I_CY"): "balance_sheet.current_year.assets.current_assets.short_term_loans_and_advances",
-    ("in-gaap:Assets", "I_CY"): "balance_sheet.current_year.assets.total_assets",
-    # ─── Balance Sheet — Prior Year (I_PY) — same tags, different context ──
-    ("in-gaap:ShareCapital", "I_PY"): "balance_sheet.prior_year.equity_and_liabilities.share_capital",
-    ("in-gaap:Reserves", "I_PY"): "balance_sheet.prior_year.equity_and_liabilities.reserves_and_surplus",
-    ("in-gaap:LongTermBorrowings", "I_PY"): "balance_sheet.prior_year.equity_and_liabilities.non_current_liabilities.long_term_borrowings",
-    ("in-gaap:TradePayables", "I_PY"): "balance_sheet.prior_year.equity_and_liabilities.current_liabilities.trade_payables",
-    ("in-gaap:OtherCurrentLiabilities", "I_PY"): "balance_sheet.prior_year.equity_and_liabilities.current_liabilities.other_current_liabilities",
-    ("in-gaap:TangibleAssets", "I_PY"): "balance_sheet.prior_year.assets.non_current_assets.tangible_assets",
-    ("in-gaap:Inventories", "I_PY"): "balance_sheet.prior_year.assets.current_assets.inventories",
-    ("in-gaap:TradeReceivables", "I_PY"): "balance_sheet.prior_year.assets.current_assets.trade_receivables",
-    ("in-gaap:CashAndBankBalances", "I_PY"): "balance_sheet.prior_year.assets.current_assets.cash_and_bank_balances",
-    ("in-gaap:Assets", "I_PY"): "balance_sheet.prior_year.assets.total_assets",
-    # ─── P&L — Current Year (D_CY) ───────────────────────────────────────────
+}
+# ─── Balance Sheet — CY+PY pairs (exact tag names from real C2X output) ─────
+_bs_pairs = [
+    # Equity & Liabilities
+    ("in-gaap:ShareCapital",                            "balance_sheet.$YEAR.equity_and_liabilities.share_capital"),
+    ("in-gaap:ReservesAndSurplus",                      "balance_sheet.$YEAR.equity_and_liabilities.reserves_and_surplus"),
+    ("in-gaap:ShareApplicationMoneyPendingAllotment",   "balance_sheet.$YEAR.equity_and_liabilities.money_received_against_share_warrants"),
+    ("in-gaap:LongTermBorrowings",                      "balance_sheet.$YEAR.equity_and_liabilities.non_current_liabilities.long_term_borrowings"),
+    ("in-gaap:DeferredTaxLiabilitiesNet",               "balance_sheet.$YEAR.equity_and_liabilities.non_current_liabilities.deferred_tax_liabilities"),
+    ("in-gaap:OtherLongTermLiabilities",                "balance_sheet.$YEAR.equity_and_liabilities.non_current_liabilities.other_long_term_liabilities"),
+    ("in-gaap:LongTermProvisions",                      "balance_sheet.$YEAR.equity_and_liabilities.non_current_liabilities.long_term_provisions"),
+    ("in-gaap:ShortTermBorrowings",                     "balance_sheet.$YEAR.equity_and_liabilities.current_liabilities.short_term_borrowings"),
+    ("in-gaap:TradePayables",                           "balance_sheet.$YEAR.equity_and_liabilities.current_liabilities.trade_payables"),
+    ("in-gaap:OtherCurrentLiabilities",                 "balance_sheet.$YEAR.equity_and_liabilities.current_liabilities.other_current_liabilities"),
+    ("in-gaap:ShortTermProvisions",                     "balance_sheet.$YEAR.equity_and_liabilities.current_liabilities.short_term_provisions"),
+    ("in-gaap:EquityAndLiabilities",                    "balance_sheet.$YEAR.equity_and_liabilities.total_equity_and_liabilities"),
+    # Assets
+    ("in-gaap:TangibleAssets",                          "balance_sheet.$YEAR.assets.non_current_assets.tangible_assets"),
+    ("in-gaap:IntangibleAssets",                        "balance_sheet.$YEAR.assets.non_current_assets.intangible_assets"),
+    ("in-gaap:CapitalWorkInProgress",                   "balance_sheet.$YEAR.assets.non_current_assets.capital_work_in_progress"),
+    ("in-gaap:NoncurrentInvestments",                   "balance_sheet.$YEAR.assets.non_current_assets.non_current_investments"),
+    ("in-gaap:DeferredTaxAssetsNet",                    "balance_sheet.$YEAR.assets.non_current_assets.deferred_tax_assets"),
+    ("in-gaap:LongTermLoansAndAdvances",                "balance_sheet.$YEAR.assets.non_current_assets.long_term_loans_and_advances"),
+    ("in-gaap:OtherNoncurrentAssets",                   "balance_sheet.$YEAR.assets.non_current_assets.other_non_current_assets"),
+    ("in-gaap:CurrentInvestments",                      "balance_sheet.$YEAR.assets.current_assets.current_investments"),
+    ("in-gaap:Inventories",                             "balance_sheet.$YEAR.assets.current_assets.inventories"),
+    ("in-gaap:TradeReceivables",                        "balance_sheet.$YEAR.assets.current_assets.trade_receivables"),
+    ("in-gaap:CashAndBankBalances",                     "balance_sheet.$YEAR.assets.current_assets.cash_and_bank_balances"),
+    ("in-gaap:ShortTermLoansAndAdvances",               "balance_sheet.$YEAR.assets.current_assets.short_term_loans_and_advances"),
+    ("in-gaap:OtherCurrentAssets",                      "balance_sheet.$YEAR.assets.current_assets.other_current_assets"),
+    ("in-gaap:Assets",                                  "balance_sheet.$YEAR.assets.total_assets"),
+]
+for tag, path_template in _bs_pairs:
+    SIMPLE_MAP.update(_bs_pair(path_template, tag))
+
+# ─── P&L (D_CY / D_PY) ──────────────────────────────────────────────────────
+SIMPLE_MAP.update({
     ("in-gaap:RevenueFromOperations", "D_CY"): "profit_loss.current_year.revenue_from_operations",
     ("in-gaap:OtherIncome", "D_CY"): "profit_loss.current_year.other_income",
     ("in-gaap:Revenue", "D_CY"): "profit_loss.current_year.total_revenue",
@@ -119,19 +132,18 @@ SIMPLE_MAP: dict[tuple[str, str], str] = {
     ("in-gaap:TaxExpense", "D_CY"): "profit_loss.current_year.tax_expense.total_tax_expense",
     ("in-gaap:CurrentTax", "D_CY"): "profit_loss.current_year.tax_expense.current_tax",
     ("in-gaap:ProfitLossForPeriod", "D_CY"): "profit_loss.current_year.profit_for_period",
-    # P&L Prior Year
     ("in-gaap:RevenueFromOperations", "D_PY"): "profit_loss.prior_year.revenue_from_operations",
     ("in-gaap:OtherIncome", "D_PY"): "profit_loss.prior_year.other_income",
     ("in-gaap:Revenue", "D_PY"): "profit_loss.prior_year.total_revenue",
     ("in-gaap:ProfitBeforeTax", "D_PY"): "profit_loss.prior_year.profit_before_tax",
     ("in-gaap:ProfitLossForPeriod", "D_PY"): "profit_loss.prior_year.profit_for_period",
-    # ─── Cash Flow ───────────────────────────────────────────────────────────
+    # ─── Cash Flow ─────────────────────────────────────────────────────────
     ("in-gaap:CashFlowsFromUsedInOperatingActivities", "D_CY"): "cash_flow.current_year.cash_from_operating_activities",
     ("in-gaap:CashFlowsFromUsedInInvestingActivities", "D_CY"): "cash_flow.current_year.cash_from_investing_activities",
     ("in-gaap:CashFlowsFromUsedInFinancingActivities", "D_CY"): "cash_flow.current_year.cash_from_financing_activities",
     ("in-gaap:CashAndCashEquivalentsCashFlowStatement", "I_CY"): "cash_flow.current_year.cash_at_end_of_period",
     ("in-gaap:CashAndCashEquivalentsCashFlowStatement", "I_PY"): "cash_flow.current_year.cash_at_beginning_of_period",
-}
+})
 
 # Dimensional patterns: contextRef matches regex → JSON path uses captured idx
 # Each entry: (tag, regex on contextRef) → JSON path template ({idx} replaced 0-indexed)
@@ -163,12 +175,97 @@ DIMENSIONAL_MAP: list[tuple[str, re.Pattern, str]] = [
 ]
 
 
+# Composite (sum-of) tags — the IFRS taxonomy emits subtotals as separate facts.
+# Each composite is a sum of its sub-line JSON paths; CY/PY pair handled by suffix.
+# Format: (tag, context) -> list of JSON paths to sum (treat null as 0)
+COMPOSITE_MAP_TEMPLATE: dict[str, list[str]] = {
+    "in-gaap:ShareholdersFunds": [
+        "balance_sheet.$YEAR.equity_and_liabilities.share_capital",
+        "balance_sheet.$YEAR.equity_and_liabilities.reserves_and_surplus",
+        "balance_sheet.$YEAR.equity_and_liabilities.money_received_against_share_warrants",
+    ],
+    "in-gaap:NoncurrentLiabilities": [
+        "balance_sheet.$YEAR.equity_and_liabilities.non_current_liabilities.long_term_borrowings",
+        "balance_sheet.$YEAR.equity_and_liabilities.non_current_liabilities.deferred_tax_liabilities",
+        "balance_sheet.$YEAR.equity_and_liabilities.non_current_liabilities.other_long_term_liabilities",
+        "balance_sheet.$YEAR.equity_and_liabilities.non_current_liabilities.long_term_provisions",
+    ],
+    "in-gaap:CurrentLiabilities": [
+        "balance_sheet.$YEAR.equity_and_liabilities.current_liabilities.short_term_borrowings",
+        "balance_sheet.$YEAR.equity_and_liabilities.current_liabilities.trade_payables",
+        "balance_sheet.$YEAR.equity_and_liabilities.current_liabilities.other_current_liabilities",
+        "balance_sheet.$YEAR.equity_and_liabilities.current_liabilities.short_term_provisions",
+    ],
+    "in-gaap:FixedAssets": [
+        "balance_sheet.$YEAR.assets.non_current_assets.tangible_assets",
+        "balance_sheet.$YEAR.assets.non_current_assets.intangible_assets",
+        "balance_sheet.$YEAR.assets.non_current_assets.capital_work_in_progress",
+    ],
+    "in-gaap:NoncurrentAssets": [
+        "balance_sheet.$YEAR.assets.non_current_assets.tangible_assets",
+        "balance_sheet.$YEAR.assets.non_current_assets.intangible_assets",
+        "balance_sheet.$YEAR.assets.non_current_assets.capital_work_in_progress",
+        "balance_sheet.$YEAR.assets.non_current_assets.non_current_investments",
+        "balance_sheet.$YEAR.assets.non_current_assets.deferred_tax_assets",
+        "balance_sheet.$YEAR.assets.non_current_assets.long_term_loans_and_advances",
+        "balance_sheet.$YEAR.assets.non_current_assets.other_non_current_assets",
+    ],
+    "in-gaap:CurrentAssets": [
+        "balance_sheet.$YEAR.assets.current_assets.current_investments",
+        "balance_sheet.$YEAR.assets.current_assets.inventories",
+        "balance_sheet.$YEAR.assets.current_assets.trade_receivables",
+        "balance_sheet.$YEAR.assets.current_assets.cash_and_bank_balances",
+        "balance_sheet.$YEAR.assets.current_assets.short_term_loans_and_advances",
+        "balance_sheet.$YEAR.assets.current_assets.other_current_assets",
+    ],
+    "in-gaap:EquityAndLiabilities": [
+        # Sum of shareholders' funds + non-current liab + current liab
+        # Implemented as a recursive sum below
+    ],
+}
+
+
+def _compute_composite(tag: str, ctx_ref: str, data: dict) -> Any:
+    """Compute a subtotal value by summing the configured JSON paths."""
+    paths = COMPOSITE_MAP_TEMPLATE.get(tag)
+    if paths is None:
+        return None
+    # Pick CY or PY based on context
+    year = "current_year" if ctx_ref == "I_CY" else "prior_year"
+    total = 0
+    found_any = False
+    for path_template in paths:
+        v = _get(data, path_template.replace("$YEAR", year))
+        if v is not None:
+            try:
+                total += float(v)
+                found_any = True
+            except (TypeError, ValueError):
+                pass
+    return int(total) if found_any else None
+
+
 def _resolve_value(tag: str, ctx_ref: str, data: dict) -> Any:
     """Look up the JSON value for a (tag, contextRef) pair, if mapped."""
     # 1. Simple direct map
     path = SIMPLE_MAP.get((tag, ctx_ref))
     if path:
         return _get(data, path)
+
+    # 1b. Composite subtotal (computed from sub-line items)
+    if tag in COMPOSITE_MAP_TEMPLATE and ctx_ref in ("I_CY", "I_PY"):
+        v = _compute_composite(tag, ctx_ref, data)
+        if v is not None:
+            return v
+
+    # 1c. EquityAndLiabilities = ShareholdersFunds + NonCurrentLiab + CurrentLiab
+    if tag == "in-gaap:EquityAndLiabilities" and ctx_ref in ("I_CY", "I_PY"):
+        sf = _compute_composite("in-gaap:ShareholdersFunds", ctx_ref, data) or 0
+        nl = _compute_composite("in-gaap:NoncurrentLiabilities", ctx_ref, data) or 0
+        cl = _compute_composite("in-gaap:CurrentLiabilities", ctx_ref, data) or 0
+        total = sf + nl + cl
+        if total > 0:
+            return total
 
     # 2. Dimensional patterns (regex on contextRef)
     for dim_tag, regex, path_template in DIMENSIONAL_MAP:
