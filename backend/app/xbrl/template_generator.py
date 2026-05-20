@@ -203,13 +203,36 @@ DIMENSIONAL_MAP: list[tuple[str, re.Pattern, str]] = [
     ("in-gaap:TypeOfShare", re.compile(r"^Tab_D_CY_309_(\d+)$"), "shareholders[{idx0}].type_of_share"),
     ("in-ca:CountryOfIncorporationOrResidenceOfShareholder", re.compile(r"^Tab_D_CY_309_(\d+)$"), "shareholders[{idx0}].country_of_residence"),
     ("in-ca:PANOfShareholder", re.compile(r"^Tab_D_CY_309_(\d+)$"), "shareholders[{idx0}].pan"),
-    # Directors / KMP
+    # Directors / KMP — extract index from any KeyManagerial...DomainDxxx_DD context
+    # Context IDs use trailing _N_N (the final number is the array index)
     ("in-ca:NameOfKeyManagerialPersonnelOrDirector",
-     re.compile(r"^KeyManagerialPersonnelsAndDirectorsDomain_D_CY_(\d+)"), "directors[{idx0}].name"),
+     re.compile(r"^KeyManagerialPersonnelsAndDirectorsDomain_D_CY_\d+_\d+_(\d+)"), "directors[{idx0}].name"),
     ("in-ca:DirectorIdentificationNumberOfKeyManagerialPersonnelOrDirector",
-     re.compile(r"^KeyManagerialPersonnelsAndDirectorsDomain_D_CY_(\d+)"), "directors[{idx0}].din"),
+     re.compile(r"^KeyManagerialPersonnelsAndDirectorsDomain_D_CY_\d+_\d+_(\d+)"), "directors[{idx0}].din"),
     ("in-ca:DesignationOfKeyManagerialPersonnelOrDirector",
-     re.compile(r"^KeyManagerialPersonnelsAndDirectorsDomain_D_CY_(\d+)"), "directors[{idx0}].designation"),
+     re.compile(r"^KeyManagerialPersonnelsAndDirectorsDomain_D_CY_\d+_\d+_(\d+)"), "directors[{idx0}].designation"),
+    # Directors signing financial statements / board report
+    ("in-ca:FirstNameOfDirector",
+     re.compile(r"^DirectorsSigningFinancialStatementsDomain_D_CY_\d+_\d+_(\d+)"), "directors[{idx0}].name"),
+    ("in-ca:LastNameOfDirector",
+     re.compile(r"^DirectorsSigningFinancialStatementsDomain_D_CY_\d+_\d+_(\d+)"), "directors[{idx0}].name"),
+    ("in-ca:DirectorIdentificationNumberOfDirector",
+     re.compile(r"^DirectorsSigningFinancialStatementsDomain_D_CY_\d+_\d+_(\d+)"), "directors[{idx0}].din"),
+    # Related parties (Note 22)
+    ("in-ca:NameOfRelatedParty",
+     re.compile(r"^RelatedPartiesDomain_D_(?:CY|PY)_\d+_\d+_(\d+)"), "related_parties[{idx0}].name"),
+    ("in-gaap:DescriptionOfNatureOfRelatedPartyRelationship",
+     re.compile(r"^RelatedPartiesDomain_D_(?:CY|PY)_\d+_\d+_(\d+)"), "related_parties[{idx0}].relationship"),
+    ("in-ca:DescriptionOfNatureOfRelatedPartyRelationship",
+     re.compile(r"^RelatedPartiesDomain_D_(?:CY|PY)_\d+_\d+_(\d+)"), "related_parties[{idx0}].relationship"),
+    ("in-ca:CountryOfIncorporationOrResidenceOfRelatedParty",
+     re.compile(r"^RelatedPartiesDomain_D_(?:CY|PY)_\d+_\d+_(\d+)"), "related_parties[{idx0}].country_of_residence"),
+    ("in-gaap:LoansAcceptedFromRelatedParties",
+     re.compile(r"^RelatedPartiesDomain_D_CY_\d+_\d+_(\d+)"), "related_parties[{idx0}].loans_accepted_during_year"),
+    ("in-gaap:LoansRepaidToRelatedParties",
+     re.compile(r"^RelatedPartiesDomain_D_CY_\d+_\d+_(\d+)"), "related_parties[{idx0}].loans_repaid_during_year"),
+    ("in-gaap:RemunerationToKeyManagerialPersonnel",
+     re.compile(r"^RelatedPartiesDomain_D_CY_\d+_\d+_(\d+)"), "related_parties[{idx0}].remuneration_paid"),
     # Auditor (single auditor in single dimensional context)
     ("in-ca:NameOfAuditFirm", re.compile(r"^AuditorsDomain_D_CY_"), "auditor.firm_name"),
     ("in-ca:FirmRegistrationNumberOfAuditFirm", re.compile(r"^AuditorsDomain_D_CY_"), "auditor.firm_registration_number"),
@@ -291,8 +314,100 @@ def _compute_composite(tag: str, ctx_ref: str, data: dict) -> Any:
     return int(total) if found_any else None
 
 
+def _resolve_ppe(tag: str, ctx_ref: str, data: dict) -> Any:
+    """Resolve PPE_* dimensional contexts using extracted property_plant_equipment array.
+
+    Context ID examples:
+      PPE_Main_I_CY_923_2680_CY_Gross         — Total Gross Block at CY end
+      PPE_Main_I_CY_923_2680_CY_Accumulated   — Total Accumulated Depreciation at CY end
+      PPE_Main_I_CY_923_2680_CY_Carrying      — Total Net Block at CY end
+      PPE_Main_I_PY_923_2680_PY_Gross         — Same for prior year
+      PPE_PlantAndEquipmentMember_1_I_CY_..._Gross  — Per-asset-class equivalent
+    """
+    if not ctx_ref.startswith("PPE_"):
+        return None
+    ppe = data.get("property_plant_equipment") or []
+    if not isinstance(ppe, list):
+        return None
+
+    # Parse context naming
+    is_main = "PPE_Main_" in ctx_ref
+    is_cy = "_I_CY_" in ctx_ref or "_D_CY_" in ctx_ref
+    is_instant = "_I_" in ctx_ref
+    metric = "Gross" if ctx_ref.endswith("_Gross") else (
+        "Accumulated" if ctx_ref.endswith("_Accumulated") else (
+            "Carrying" if ctx_ref.endswith("_Carrying") else None
+        )
+    )
+
+    # For per-asset-class (PlantAndEquipmentMember_N), pick that index
+    # For PPE_Main, sum across all asset classes
+    items: list
+    if is_main:
+        items = ppe
+    else:
+        m = re.search(r"PPE_\w+Member_(\d+)_", ctx_ref)
+        if not m:
+            return None
+        idx = int(m.group(1)) - 1
+        items = [ppe[idx]] if 0 <= idx < len(ppe) else []
+    if not items:
+        return None
+
+    def _sum(field: str) -> float:
+        total = 0
+        for it in items:
+            v = it.get(field) if isinstance(it, dict) else None
+            if isinstance(v, (int, float)):
+                total += v
+        return total
+
+    # Instant contexts (I_CY / I_PY) = balance at year end
+    if is_instant:
+        suffix = "current_year" if is_cy else "prior_year"
+        if metric == "Gross":
+            return _sum(f"closing_gross_block_{suffix}")
+        if metric == "Accumulated":
+            return _sum(f"accumulated_depreciation_closing") if is_cy else _sum("accumulated_depreciation_opening")
+        if metric == "Carrying":
+            return _sum(f"net_carrying_amount_{suffix}")
+    # Duration contexts (D_CY / D_PY) = movement during year
+    else:
+        # Tag-specific resolution
+        if tag in ("in-gaap:AdditionsOtherThanThroughBusinessCombinationsTangibleAssets",
+                   "in-gaap:AdditionsTangibleAssets"):
+            return _sum("additions_during_current_year" if is_cy else "additions_during_prior_year")
+        if tag in ("in-gaap:DisposalsTangibleAssets", "in-gaap:DisposalsTangibleAssetsOthers"):
+            return _sum("disposals_during_current_year" if is_cy else "disposals_during_prior_year")
+        if tag in ("in-gaap:DepreciationTangibleAssets",
+                   "in-gaap:DepreciationForYearTangibleAssets"):
+            return _sum("depreciation_for_year")
+        if tag == "in-gaap:UsefulLivesOrDepreciationRatesTangibleAssets":
+            for it in items:
+                v = it.get("useful_life_years") if isinstance(it, dict) else None
+                if v is not None:
+                    return v
+        if tag == "in-gaap:DepreciationMethodTangibleAssets":
+            for it in items:
+                v = it.get("depreciation_method") if isinstance(it, dict) else None
+                if v:
+                    return v
+        if tag == "in-gaap:ChangesInTangibleAssets":
+            # Net change during year = additions - disposals
+            adds = _sum("additions_during_current_year" if is_cy else "additions_during_prior_year")
+            disp = _sum("disposals_during_current_year" if is_cy else "disposals_during_prior_year")
+            return adds - disp
+    return None
+
+
 def _resolve_value(tag: str, ctx_ref: str, data: dict) -> Any:
     """Look up the JSON value for a (tag, contextRef) pair, if mapped."""
+    # 0. PPE dimensional contexts (high-volume — 85 contexts in template)
+    if ctx_ref.startswith("PPE_"):
+        v = _resolve_ppe(tag, ctx_ref, data)
+        if v is not None:
+            return v
+
     # 1. Simple direct map
     path = SIMPLE_MAP.get((tag, ctx_ref))
     if path:

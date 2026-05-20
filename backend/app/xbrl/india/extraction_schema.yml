@@ -339,6 +339,82 @@ property_plant_equipment:
     useful_life_years: { type: number }
     depreciation_method: { type: enum, enum: ["Straight Line", "Written Down Value"] }
 
+# ─── RELATED PARTY TRANSACTIONS (Note 22 in Indian filings) ──────────────────
+related_parties:
+  type: array
+  description: "Related party (KMP, directors, related entities) transactions table"
+  items:
+    name: { type: string, description: "Name of related party" }
+    relationship: { type: enum, enum: ["Key Managerial Personnel", "Director", "Holding Company", "Subsidiary", "Associate", "Relative of KMP", "Enterprise where Director has interest"] }
+    designation: { type: string, description: "e.g., Director, Proprietor" }
+    country_of_residence: { type: string, required: false }
+    loans_accepted_during_year: { type: number, required: false }
+    loans_repaid_during_year: { type: number, required: false }
+    year_end_balance: { type: number, required: false }
+    remuneration_paid: { type: number, required: false }
+    nature_of_transaction: { type: string, required: false }
+
+# ─── TRADE PAYABLES AGING (Schedule III mandatory disclosure) ────────────────
+trade_payables_aging:
+  current_year:
+    msme:
+      less_than_1_year: { type: number, required: false }
+      one_to_two_years: { type: number, required: false }
+      two_to_three_years: { type: number, required: false }
+      more_than_3_years: { type: number, required: false }
+    others:
+      less_than_1_year: { type: number, required: false }
+      one_to_two_years: { type: number, required: false }
+      two_to_three_years: { type: number, required: false }
+      more_than_3_years: { type: number, required: false }
+    disputed_msme:
+      less_than_1_year: { type: number, required: false }
+      one_to_two_years: { type: number, required: false }
+      two_to_three_years: { type: number, required: false }
+      more_than_3_years: { type: number, required: false }
+    disputed_others:
+      less_than_1_year: { type: number, required: false }
+      one_to_two_years: { type: number, required: false }
+      two_to_three_years: { type: number, required: false }
+      more_than_3_years: { type: number, required: false }
+  prior_year:
+    # same structure as current_year
+    msme: { }
+    others: { }
+    disputed_msme: { }
+    disputed_others: { }
+
+# ─── TRADE RECEIVABLES AGING (Schedule III mandatory disclosure) ─────────────
+trade_receivables_aging:
+  current_year:
+    undisputed_good:
+      less_than_6_months: { type: number, required: false }
+      six_months_to_1_year: { type: number, required: false }
+      one_to_two_years: { type: number, required: false }
+      two_to_three_years: { type: number, required: false }
+      more_than_3_years: { type: number, required: false }
+    undisputed_doubtful: { }
+    disputed_good: { }
+    disputed_doubtful: { }
+  prior_year:
+    undisputed_good: { }
+    undisputed_doubtful: { }
+    disputed_good: { }
+    disputed_doubtful: { }
+
+# ─── SHARE CAPITAL MOVEMENTS (Note 2.2 reconciliation) ───────────────────────
+share_capital_movements:
+  current_year:
+    shares_at_beginning: { type: number, required: false }
+    shares_issued_during_year: { type: number, required: false }
+    shares_bought_back_during_year: { type: number, required: false }
+    shares_at_end: { type: number, required: false }
+  prior_year:
+    shares_at_beginning: { type: number, required: false }
+    shares_issued_during_year: { type: number, required: false }
+    shares_bought_back_during_year: { type: number, required: false }
+    shares_at_end: { type: number, required: false }
+
 # ─── BOARD APPROVAL ───────────────────────────────────────────────────────────
 board_approval:
   date_of_board_meeting:

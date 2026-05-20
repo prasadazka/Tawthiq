@@ -162,6 +162,45 @@ EXTRACTION TARGETS:
 - Property/Plant/Equipment movement schedule (if present)
 - Board approval date
 
+DETAILED NOTES SECTIONS — These are MANDATORY for Indian XBRL filings. Search the
+notes section of the PDF for these specific tables and extract every row:
+
+1. PROPERTY, PLANT & EQUIPMENT MOVEMENT TABLE (Note 7 in most Indian filings):
+   - This is a wide table with multiple asset classes as rows and movement columns:
+     Gross Block (Opening, Additions, Deletions, Closing) | Depreciation (Opening, For Year, Adjustments, Closing) | Net Block (CY, PY)
+   - Asset classes seen in practice: "Computers and Data Processing Units", "Plant and
+     Machinery", "Office Equipment", "Furniture and Fixtures", "Vehicles", "Land",
+     "Buildings". Use the closest matching enum value from the schema.
+   - Extract EVERY row, plus the totals row.
+   - Values are typically shown in thousands — multiply by 1000 if the table header
+     says "in thousands" or "₹ '000".
+
+2. RELATED PARTY TRANSACTIONS TABLE (Note 22):
+   - Three sub-sections typically:
+     22.1 Key Managerial Personnel list (name + relation, e.g., "G Krishna — Director")
+     22.2 Directors interested in concerns (other entities where directors have stake)
+     22.3 Transactions table: rows of [Name, Loan Accepted, Loan Repaid, Year End
+          Balance, Remuneration Paid]
+   - For 22.3, populate the `related_parties[]` array with one entry per person.
+   - Relationship = "Key Managerial Personnel" for KMP, "Director" for board directors.
+
+3. TRADE PAYABLES AGING (Schedule III mandatory):
+   - Buckets: < 1 year, 1-2 years, 2-3 years, > 3 years.
+   - Categories: (i) MSME, (ii) Others, (iii) Disputed dues MSME, (iv) Disputed
+     Dues Others.
+   - Extract for BOTH years (CY and PY tables).
+   - Fields not present in PDF → use 0 (don't leave null).
+
+4. TRADE RECEIVABLES AGING (Schedule III mandatory):
+   - Buckets: < 6 months, 6 months-1 year, 1-2 years, 2-3 years, > 3 years.
+   - Categories: Undisputed Good, Undisputed Doubtful, Disputed Good, Disputed
+     Doubtful.
+
+5. SHARE CAPITAL RECONCILIATION (Note 2.2):
+   - Table showing: Equity shares at beginning + Issued during year - Bought back
+     during year = Equity shares at end.
+   - Extract for BOTH CY and PY.
+
 JSON SCHEMA SKELETON:
 {skeleton}
 
