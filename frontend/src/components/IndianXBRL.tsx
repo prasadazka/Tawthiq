@@ -1,5 +1,6 @@
 import { useState } from "react";
 import DualUploadZone from "./DualUploadZone";
+import ProcessingView from "./ProcessingView";
 import XBRLEditor from "./XBRLEditor";
 import {
   extractIndianXBRL,
@@ -107,11 +108,11 @@ export default function IndianXBRL({ onStageChange }: IndianXBRLProps = {}) {
       {stage === "idle" && (
         <div className="landing">
           <div className="hero">
-            <h1>Indian XBRL<br />Generation</h1>
+            <h1>Indian XBRL Generation</h1>
             <p className="hero-sub">
-              Upload the audit-report PDF <em>and</em> the CA's working Excel.
-              Tawthiq extracts data from both, merges them, validates against MCA
-              filing requirements, and generates a ready-to-submit XBRL XML file.
+              Upload the audit-report PDF and the CA's working Excel.
+              Tawthiq merges both sources, validates against MCA rules, and
+              produces a ready-to-submit XBRL XML.
             </p>
           </div>
           <DualUploadZone onFilesReady={handleFiles} />
@@ -152,44 +153,7 @@ export default function IndianXBRL({ onStageChange }: IndianXBRLProps = {}) {
 
       {/* EXTRACTING */}
       {stage === "extracting" && (
-        <div className="validating-card">
-          <div className="validating-file">
-            <div className="file-thumb">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
-            </div>
-            <div>
-              <p className="validating-name">{fileName}</p>
-              <p className="validating-size">{fileSize}</p>
-            </div>
-          </div>
-          <div className="progress-section">
-            <div className="progress-bar"><div className="progress-fill" /></div>
-            <p className="progress-label">Extracting financial data with Gemini AI (~60s)...</p>
-          </div>
-          <div className="validating-steps">
-            <div className="step step-done">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 12l2 2 4-4" /><circle cx="12" cy="12" r="10" />
-              </svg>
-              File uploaded
-            </div>
-            <div className="step step-active">
-              <div className="step-spinner" />
-              Reading PDF + extracting to JSON
-            </div>
-            <div className="step step-pending">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10" /></svg>
-              Validating against 33 MCA rules
-            </div>
-            <div className="step step-pending">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10" /></svg>
-              Generate XBRL XML
-            </div>
-          </div>
-        </div>
+        <ProcessingView mode="extracting" fileSummary={`${fileName} · ${fileSize}`} />
       )}
 
       {/* VALIDATED — show report, let user generate */}
@@ -208,12 +172,7 @@ export default function IndianXBRL({ onStageChange }: IndianXBRLProps = {}) {
 
       {/* GENERATING */}
       {stage === "generating" && (
-        <div className="validating-card">
-          <div className="progress-section">
-            <div className="progress-bar"><div className="progress-fill" /></div>
-            <p className="progress-label">Generating XBRL XML document...</p>
-          </div>
-        </div>
+        <ProcessingView mode="generating" fileSummary={`${fileName} · ${fileSize}`} />
       )}
 
       {/* BLOCKED — validation failed, can't proceed without skip */}

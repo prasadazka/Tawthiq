@@ -88,7 +88,7 @@ function App() {
               className={`nav-tab ${activeTab === "saudi" ? "nav-tab-active" : ""}`}
               onClick={() => handleTabSwitch("saudi")}
             >
-              Saudi PDF Validation
+              PDF Validation
             </button>
           )}
           {!hideIndianTab && (
@@ -120,13 +120,6 @@ function App() {
               <main className="main">
                 {state === "idle" && (
                   <div className="landing">
-                    <div className="hero">
-                      <h1>Saudi Financial Document<br />Validation Platform</h1>
-                      <p className="hero-sub">
-                        Upload your financial statement PDF and validate it against
-                        regulatory compliance rules automatically.
-                      </p>
-                    </div>
                     <div className="sector-selector">
                       <label className="sector-label">Select Sector</label>
                       <div className="sector-options">
@@ -155,7 +148,7 @@ function App() {
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                         </div>
                         <h3>23 Compliance Rules</h3>
-                        <p>Validates against mandatory filing requirements for Saudi financial statements</p>
+                        <p>Validates against mandatory filing requirements for financial statements</p>
                       </div>
                       <div className="feature">
                         <div className="feature-icon">
