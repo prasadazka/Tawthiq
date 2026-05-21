@@ -105,6 +105,20 @@ def query_with_gemini(pdf_bytes: bytes, prompt: str) -> str:
     return response.text
 
 
+def query_gemini_text(prompt: str) -> str:
+    """Send a text-only prompt to Gemini (no PDF attachment).
+
+    Used for Excel extraction where sheets are already serialized to markdown
+    in the prompt itself.
+    """
+    _init_vertex()
+    model = GenerativeModel("gemini-2.5-flash")
+    temp = float(os.getenv("GEMINI_TEMPERATURE", "0.0"))
+    config = GenerationConfig(temperature=temp)
+    response = model.generate_content([prompt], generation_config=config)
+    return response.text
+
+
 def _get_groq_client() -> Groq:
     global _groq_client
     if _groq_client is None:

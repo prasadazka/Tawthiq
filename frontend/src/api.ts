@@ -107,9 +107,13 @@ export interface XBRLExtractResponse {
   validation: XBRLValidationReport;
 }
 
-export async function extractIndianXBRL(file: File): Promise<XBRLExtractResponse> {
+export async function extractIndianXBRL(
+  file: File,
+  excel: File
+): Promise<XBRLExtractResponse> {
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("excel", excel);
   const res = await fetch(`${API_BASE}/api/xbrl/india/extract`, {
     method: "POST",
     body: formData,
@@ -198,10 +202,12 @@ export async function downloadExcelFromJSON(
 
 export async function generateIndianXBRL(
   file: File,
+  excel: File,
   skipValidation: boolean = false
 ): Promise<XBRLGenerateBlobResult | { validationReport: XBRLValidationReport; extractionData: Record<string, unknown> }> {
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("excel", excel);
   formData.append("skip_validation", String(skipValidation));
 
   const res = await fetch(`${API_BASE}/api/xbrl/india/generate`, {

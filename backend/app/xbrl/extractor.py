@@ -17,7 +17,7 @@ from typing import Any
 
 import yaml
 
-from app.services.extractor import query_llm
+from app.services.extractor import query_llm, query_gemini_text
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,28 @@ class XBRLDataExtractor:
         prompt = self._build_prompt()
         try:
             raw = query_llm(prompt, document_text, pdf_bytes)
+        except Exception as exc:
+            return ExtractionResult(success=False, error=f"LLM call failed: {exc}")
+
+        try:
+            data = self._parse_json(raw)
+        except json.JSONDecodeError as exc:
+            return ExtractionResult(
+                success=False, error=f"JSON parse failed: {exc}", raw_response=raw[:1000]
+            )
+
+        if not isinstance(data, dict):
+            return ExtractionResult(
+                success=False, error="LLM did not return a JSON object", raw_response=raw[:1000]
+            )
+
+        return ExtractionResult(success=True, data=data, raw_response=raw)
+
+    def extract_from_excel(self, sheets_markdown: dict[str, str]) -> ExtractionResult:
+        """Run Gemini against a workbook (sheets serialized as markdown tables)."""
+        prompt = self._build_excel_prompt(sheets_markdown)
+        try:
+            raw = query_gemini_text(prompt)
         except Exception as exc:
             return ExtractionResult(success=False, error=f"LLM call failed: {exc}")
 
@@ -200,6 +222,83 @@ notes section of the PDF for these specific tables and extract every row:
    - Table showing: Equity shares at beginning + Issued during year - Bought back
      during year = Equity shares at end.
    - Extract for BOTH CY and PY.
+
+JSON SCHEMA SKELETON:
+{skeleton}
+
+Return ONLY the populated JSON object now.
+"""
+
+    def _build_excel_prompt(self, sheets_markdown: dict[str, str]) -> str:
+        """Build prompt for extracting from a CA working-file Excel workbook."""
+        skeleton = self._build_json_skeleton(self.schema)
+        country_name = self.country.capitalize()
+
+        sheets_block = ""
+        for name, md in sheets_markdown.items():
+            sheets_block += f"\n=== SHEET: {name} ===\n{md}\n"
+
+        return f"""You are extracting structured financial data from a {country_name} chartered accountant's working-file Excel workbook for XBRL generation.
+
+This is the CA's internal workbook used to PREPARE the audited financials. Sheets typically include:
+- Notes / Add Notes — share capital reconciliation, reserves movement, related party transactions, CSR
+- Sch III Ratios — 14 mandatory analytical ratios with variation %
+- Com Dep — Companies Act depreciation per asset class (Computers, P&M, Office Equipment, Furniture)
+- IT Dep — Income Tax depreciation + deferred tax computation
+- Sheet2 — Trade Payables/Receivables aging buckets
+- Sub Grouping — TCS / TDS / GST breakdown
+- BS / P&L / CFS — financial statements
+- Trial Bal / TB2023 — trial balance source data
+
+CRITICAL RULES:
+1. Output ONLY valid JSON — no markdown fences, no explanations.
+2. Use EXACT field names from the schema (snake_case, case-sensitive).
+3. Dates ISO format YYYY-MM-DD.
+4. Numbers: absolute values, no formatting. Negative for losses/decreases.
+5. Enum fields: ONLY allowed values listed in the schema.
+6. Genuinely missing → null. Do NOT invent data.
+7. Numbers showing as "0" or "-" in Excel ARE real values (zero) — treat as 0, not null.
+
+WHERE TO LOOK IN EACH SHEET:
+
+NOTES sheet:
+- Note 2.1: shareholders holding > 5% (name, shares, %)
+- Note 2.2: share_capital_movements — opening shares, issued, bought back, closing (for CY and PY)
+- Note 2.3: promoter shareholding with % change
+- Note 3: Reserves and Surplus bifurcation (share premium, P&L appropriations)
+- Note 5: Trade Payables MSME vs Others split
+- Note 7 area: PPE class totals
+- Note 17.1: Auditor fees breakdown (Statutory / Tax Audit / Certification)
+- Note 18: EPS table
+
+ADD NOTES sheet:
+- Section 22.1: Key Managerial Personnel list (name + relationship)
+- Section 22.2: Directors interested in concerns (other entities)
+- Section 22.3: RPT transactions — populate related_parties[] with name, relationship, loans_accepted, loans_repaid, year_end_balance, remuneration_paid
+- Section 23: CSR liability vs expenditure
+
+SCH III RATIOS sheet:
+- 14 ratios with CY/PY1/PY2 values + variation % + reason
+- Map to schema's analytical_ratios fields
+
+COM DEP sheet (Note 7 PPE schedule):
+- Per-asset-class table: Computers, Plant & Machinery, Office Equipment, Furniture & Fixtures
+- Each row has: Opening, Additions, Deletions, Closing, Depreciation Opening, For Year, Closing, Net Block CY, Net Block PY
+- Populate property_plant_equipment[] with one entry per asset class
+
+IT DEP sheet:
+- Deferred tax computation showing IT Act depreciation vs Companies Act depreciation
+- Net deferred tax asset/liability — populate balance_sheet.current_year.deferred_tax fields
+
+SHEET2:
+- Trade Payables aging: < 1 year, 1-2y, 2-3y, > 3y for MSME / Others / Disputed MSME / Disputed Others (CY + PY tables)
+- Trade Receivables aging: < 6m, 6m-1y, 1-2y, 2-3y, > 3y for Undisputed Good / Undisputed Doubtful / Disputed Good / Disputed Doubtful
+
+BS / P&L / CFS sheets:
+- The financial statements themselves — extract current_year AND prior_year values
+
+WORKBOOK CONTENTS:
+{sheets_block}
 
 JSON SCHEMA SKELETON:
 {skeleton}

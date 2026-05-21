@@ -217,6 +217,72 @@
   pointer-events: none;
 }
 
+/* ── Dual upload (PDF + Excel) ── */
+.upload-dual {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.upload-dual-slots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.upload-zone.dual-slot {
+  max-width: none;
+  padding: 36px 28px;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.upload-zone.dual-slot.filled {
+  border-color: #16a34a;
+  background: rgba(22, 163, 74, 0.04);
+  border-style: solid;
+}
+
+.upload-filled {
+  margin-top: 10px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--text);
+}
+
+.upload-filled strong {
+  font-weight: 600;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.upload-cta {
+  align-self: center;
+  min-width: 280px;
+}
+
+.upload-cta:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .upload-dual-slots {
+    grid-template-columns: 1fr;
+  }
+}
+
 .upload-icon-wrap {
   width: 56px;
   height: 56px;

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import UploadZone from "./UploadZone";
+import DualUploadZone from "./DualUploadZone";
 import XBRLEditor from "./XBRLEditor";
 import {
   extractIndianXBRL,
@@ -33,6 +33,7 @@ export default function IndianXBRL({ onStageChange }: IndianXBRLProps = {}) {
   const [fileName, setFileName] = useState("");
   const [fileSize, setFileSize] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [excelFile, setExcelFile] = useState<File | null>(null);
   const [extractData, setExtractData] = useState<XBRLExtractResponse | null>(null);
   const [validationReport, setValidationReport] = useState<XBRLValidationReport | null>(null);
   const [generated, setGenerated] = useState<GeneratedFile | null>(null);
@@ -44,15 +45,16 @@ export default function IndianXBRL({ onStageChange }: IndianXBRLProps = {}) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const handleFile = async (file: File) => {
-    setPdfFile(file);
-    setFileName(file.name);
-    setFileSize(formatSize(file.size));
+  const handleFiles = async (pdf: File, excel: File) => {
+    setPdfFile(pdf);
+    setExcelFile(excel);
+    setFileName(`${pdf.name} + ${excel.name}`);
+    setFileSize(`${formatSize(pdf.size)} + ${formatSize(excel.size)}`);
     setError("");
     setStage("extracting");
 
     try {
-      const data = await extractIndianXBRL(file);
+      const data = await extractIndianXBRL(pdf, excel);
       setExtractData(data);
       setValidationReport(data.validation);
       setStage("validated");
@@ -63,12 +65,12 @@ export default function IndianXBRL({ onStageChange }: IndianXBRLProps = {}) {
   };
 
   const handleGenerate = async (forceSkip: boolean = false) => {
-    if (!pdfFile) return;
+    if (!pdfFile || !excelFile) return;
     setStage("generating");
     setError("");
 
     try {
-      const result = await generateIndianXBRL(pdfFile, forceSkip || skipValidation);
+      const result = await generateIndianXBRL(pdfFile, excelFile, forceSkip || skipValidation);
 
       if ("blob" in result) {
         // Decode the UTF-16 XML so the editor can show it as text
@@ -95,6 +97,7 @@ export default function IndianXBRL({ onStageChange }: IndianXBRLProps = {}) {
     setFileName("");
     setFileSize("");
     setPdfFile(null);
+    setExcelFile(null);
     setSkipValidation(false);
   };
 
@@ -106,12 +109,12 @@ export default function IndianXBRL({ onStageChange }: IndianXBRLProps = {}) {
           <div className="hero">
             <h1>Indian XBRL<br />Generation</h1>
             <p className="hero-sub">
-              Upload an Indian company's audit report PDF. Tawthiq extracts financial data,
-              validates against MCA filing requirements, and generates a ready-to-submit
-              XBRL XML file.
+              Upload the audit-report PDF <em>and</em> the CA's working Excel.
+              Tawthiq extracts data from both, merges them, validates against MCA
+              filing requirements, and generates a ready-to-submit XBRL XML file.
             </p>
           </div>
-          <UploadZone onFileSelected={handleFile} />
+          <DualUploadZone onFilesReady={handleFiles} />
           <div className="features">
             <div className="feature">
               <div className="feature-icon">

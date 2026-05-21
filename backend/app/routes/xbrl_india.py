@@ -1,6 +1,7 @@
 """Indian XBRL endpoints — extraction + validation (generation in next phase)."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from pathlib import Path
@@ -10,7 +11,9 @@ from fastapi.responses import Response
 
 from pydantic import BaseModel
 
+from app.services.excel_extractor import excel_to_markdown, is_valid_excel
 from app.services.extractor import get_pdf_info
+from app.services.merger import merge_extractions
 from app.xbrl.excel_generator import generate_excel
 from app.xbrl.extractor import XBRLDataExtractor
 from app.xbrl.template_generator import generate_xbrl as generate_xbrl_from_template
@@ -29,56 +32,126 @@ CONTEXT_TEMPLATE = CONFIG_DIR / "context_template.yml"
 TAXONOMY_MAPPING = CONFIG_DIR / "taxonomy_mapping.yml"
 
 
-@router.post("/extract")
-async def extract_and_validate(file: UploadFile = File(...)):
-    """Extract structured data from an Indian audit PDF and run pre-XBRL validation.
+async def _read_upload(file: UploadFile, suffix: str, label: str) -> bytes:
+    if not file.filename or not file.filename.lower().endswith(suffix):
+        raise HTTPException(status_code=400, detail=f"{label} must end with {suffix}")
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail=f"{label} is empty")
+    return data
 
-    Returns the extracted JSON plus a validation report (all 33 rule results).
-    XBRL generation is a separate endpoint (added in Phase 5).
-    """
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="File must be a PDF")
 
-    t_start = time.time()
-    pdf_bytes = await file.read()
-    doc_info = get_pdf_info(pdf_bytes)
+async def _extract_combined(pdf_bytes: bytes, xlsx_bytes: bytes) -> dict:
+    """Run PDF + Excel extraction in parallel and merge.
 
-    # Step 1: Extract structured data via Gemini
-    t0 = time.time()
-    extractor = XBRLDataExtractor(EXTRACTION_SCHEMA)
-    result = extractor.extract(pdf_bytes, doc_info.get("full_text", ""))
-    extract_seconds = round(time.time() - t0, 1)
-
-    if not result.success:
-        return {
-            "filename": file.filename,
-            "success": False,
-            "stage": "extraction",
-            "error": result.error,
-            "raw_response_preview": result.raw_response[:500] if result.raw_response else "",
-            "extract_seconds": extract_seconds,
+    Returns:
+        {
+          "data": merged extraction dict,
+          "pdf_data": raw PDF extraction,
+          "xlsx_data": raw Excel extraction,
+          "provenance": {path: "pdf"|"xlsx"},
+          "conflicts": [...],
+          "page_count": int,
+          "timings": {...},
+          "errors": {pdf?: str, xlsx?: str},
         }
+    """
+    if not is_valid_excel(xlsx_bytes):
+        raise HTTPException(status_code=400, detail="Invalid Excel file (bad signature)")
+    if not pdf_bytes.startswith(b"%PDF-"):
+        raise HTTPException(status_code=400, detail="Invalid PDF file (bad signature)")
 
-    # Step 2: Validate the extracted JSON against MCA-filing rules
+    t0 = time.time()
+    doc_info = get_pdf_info(pdf_bytes)
+    sheets_md = excel_to_markdown(xlsx_bytes)
+    t_prep = round(time.time() - t0, 2)
+
+    extractor = XBRLDataExtractor(EXTRACTION_SCHEMA)
+
+    loop = asyncio.get_running_loop()
+    t1 = time.time()
+    pdf_task = loop.run_in_executor(
+        None, extractor.extract, pdf_bytes, doc_info.get("full_text", "")
+    )
+    xlsx_task = loop.run_in_executor(None, extractor.extract_from_excel, sheets_md)
+    pdf_res, xlsx_res = await asyncio.gather(pdf_task, xlsx_task)
+    t_extract = round(time.time() - t1, 1)
+
+    errors: dict[str, str] = {}
+    if not pdf_res.success:
+        errors["pdf"] = pdf_res.error
+    if not xlsx_res.success:
+        errors["xlsx"] = xlsx_res.error
+
+    # Hard fail only if both failed.
+    if not pdf_res.success and not xlsx_res.success:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Both extractions failed. PDF: {pdf_res.error} | Excel: {xlsx_res.error}",
+        )
+
+    pdf_data = pdf_res.data if pdf_res.success else {}
+    xlsx_data = xlsx_res.data if xlsx_res.success else {}
+    merged, provenance, conflicts = merge_extractions(pdf_data, xlsx_data)
+
+    if conflicts:
+        logger.info(f"merge conflicts: {len(conflicts)} numeric values differ significantly between PDF and Excel")
+
+    return {
+        "data": merged,
+        "pdf_data": pdf_data,
+        "xlsx_data": xlsx_data,
+        "provenance": provenance,
+        "conflicts": conflicts,
+        "page_count": doc_info.get("page_count"),
+        "sheet_names": list(sheets_md.keys()),
+        "timings": {
+            "prep_seconds": t_prep,
+            "extract_seconds": t_extract,
+        },
+        "errors": errors,
+    }
+
+
+@router.post("/extract")
+async def extract_and_validate(
+    file: UploadFile = File(...),
+    excel: UploadFile = File(...),
+):
+    """Extract structured data from PDF + Excel (in parallel) and run pre-XBRL validation.
+
+    Returns the merged extracted JSON plus a validation report (all 33 rule results).
+    """
+    t_start = time.time()
+    pdf_bytes = await _read_upload(file, ".pdf", "PDF")
+    xlsx_bytes = await _read_upload(excel, ".xlsx", "Excel")
+
+    combined = await _extract_combined(pdf_bytes, xlsx_bytes)
+
     t0 = time.time()
     validator = IndianXBRLValidator(VALIDATION_RULES)
-    report = validator.validate(result.data)
+    report = validator.validate(combined["data"])
     validate_seconds = round(time.time() - t0, 2)
 
     total_seconds = round(time.time() - t_start, 1)
 
     return {
         "filename": file.filename,
+        "excel_filename": excel.filename,
         "success": True,
         "ready_for_xbrl": report.passed,
         "timings": {
-            "extract_seconds": extract_seconds,
+            "extract_seconds": combined["timings"]["extract_seconds"],
             "validate_seconds": validate_seconds,
             "total_seconds": total_seconds,
         },
         "extraction": {
-            "page_count": doc_info.get("page_count"),
-            "data": result.data,
+            "page_count": combined["page_count"],
+            "sheet_names": combined["sheet_names"],
+            "data": combined["data"],
+            "provenance": combined["provenance"],
+            "conflicts": combined["conflicts"],
+            "extraction_errors": combined["errors"],
         },
         "validation": {
             "passed": report.passed,
@@ -110,34 +183,28 @@ async def extract_and_validate(file: UploadFile = File(...)):
 @router.post("/generate")
 async def generate_xbrl(
     file: UploadFile = File(...),
+    excel: UploadFile = File(...),
     skip_validation: bool = Form(False),
 ):
-    """End-to-end: PDF → extract → validate → generate XBRL XML.
+    """End-to-end: PDF + Excel → extract → validate → generate XBRL XML.
 
     If validation passes (or skip_validation=true), returns the XBRL XML file
     as a download. Otherwise returns the validation report as JSON.
     """
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="File must be a PDF")
-
     t_start = time.time()
-    pdf_bytes = await file.read()
-    doc_info = get_pdf_info(pdf_bytes)
+    pdf_bytes = await _read_upload(file, ".pdf", "PDF")
+    xlsx_bytes = await _read_upload(excel, ".xlsx", "Excel")
 
-    # 1. Extract
-    extractor = XBRLDataExtractor(EXTRACTION_SCHEMA)
-    extract_result = extractor.extract(pdf_bytes, doc_info.get("full_text", ""))
-    if not extract_result.success:
-        raise HTTPException(status_code=500, detail=f"Extraction failed: {extract_result.error}")
+    combined = await _extract_combined(pdf_bytes, xlsx_bytes)
+    merged_data = combined["data"]
 
-    # 2. Validate
     validator = IndianXBRLValidator(VALIDATION_RULES)
-    report = validator.validate(extract_result.data)
+    report = validator.validate(merged_data)
 
     if not report.passed and not skip_validation:
-        # Block — return failures as JSON
         return {
             "filename": file.filename,
+            "excel_filename": excel.filename,
             "success": False,
             "stage": "validation",
             "ready_for_xbrl": False,
@@ -152,12 +219,11 @@ async def generate_xbrl(
                     for r in report.warnings
                 ],
             },
-            "extraction_data": extract_result.data,
+            "extraction_data": merged_data,
             "hint": "Fix the blocking failures above, or retry with skip_validation=true.",
         }
 
-    # 3. Generate XBRL
-    gen_result = generate_xbrl_from_template(extract_result.data)
+    gen_result = generate_xbrl_from_template(merged_data)
     if not gen_result.success:
         raise HTTPException(status_code=500, detail=f"XBRL generation failed: {gen_result.error}")
 
@@ -183,27 +249,23 @@ async def generate_xbrl(
 @router.post("/generate-debug")
 async def generate_xbrl_debug(
     file: UploadFile = File(...),
+    excel: UploadFile = File(...),
     skip_validation: bool = Form(True),
 ):
     """Same as /generate but returns JSON (XML as base64) for inspection."""
     import base64
 
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="File must be a PDF")
-
     t_start = time.time()
-    pdf_bytes = await file.read()
-    doc_info = get_pdf_info(pdf_bytes)
+    pdf_bytes = await _read_upload(file, ".pdf", "PDF")
+    xlsx_bytes = await _read_upload(excel, ".xlsx", "Excel")
 
-    extractor = XBRLDataExtractor(EXTRACTION_SCHEMA)
-    extract_result = extractor.extract(pdf_bytes, doc_info.get("full_text", ""))
-    if not extract_result.success:
-        return {"success": False, "error": extract_result.error}
+    combined = await _extract_combined(pdf_bytes, xlsx_bytes)
+    merged_data = combined["data"]
 
     validator = IndianXBRLValidator(VALIDATION_RULES)
-    report = validator.validate(extract_result.data)
+    report = validator.validate(merged_data)
 
-    gen_result = generate_xbrl_from_template(extract_result.data)
+    gen_result = generate_xbrl_from_template(merged_data)
     if not gen_result.success:
         return {"success": False, "error": gen_result.error}
 
@@ -286,35 +348,30 @@ async def download_xml(req: XMLDownloadRequest):
 
 
 @router.post("/generate-excel")
-async def generate_excel_endpoint(file: UploadFile = File(...)):
-    """End-to-end: PDF → extract → produce multi-sheet Excel workbook.
+async def generate_excel_endpoint(
+    file: UploadFile = File(...),
+    excel: UploadFile = File(...),
+):
+    """End-to-end: PDF + Excel → extract → produce multi-sheet review workbook.
 
     Returns an .xlsx file the user can download to inspect every extracted
-    field side-by-side with empty cells highlighted (yellow). Useful for
-    reviewing AI extraction quality and comparing against the source.
+    field side-by-side with empty cells highlighted (yellow).
     """
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="File must be a PDF")
+    pdf_bytes = await _read_upload(file, ".pdf", "PDF")
+    xlsx_bytes = await _read_upload(excel, ".xlsx", "Excel")
 
-    pdf_bytes = await file.read()
-    doc_info = get_pdf_info(pdf_bytes)
-
-    extractor = XBRLDataExtractor(EXTRACTION_SCHEMA)
-    er = extractor.extract(pdf_bytes, doc_info.get("full_text", ""))
-    if not er.success:
-        raise HTTPException(status_code=500, detail=f"Extraction failed: {er.error}")
-
-    excel = generate_excel(er.data)
-    if not excel.success:
-        raise HTTPException(status_code=500, detail=f"Excel generation failed: {excel.error}")
+    combined = await _extract_combined(pdf_bytes, xlsx_bytes)
+    excel_out = generate_excel(combined["data"])
+    if not excel_out.success:
+        raise HTTPException(status_code=500, detail=f"Excel generation failed: {excel_out.error}")
 
     headers = {
-        "Content-Disposition": f'attachment; filename="{excel.filename}"',
-        "X-Tawthiq-Sheets": str(excel.sheet_count),
-        "X-Tawthiq-Cells": str(excel.cell_count),
+        "Content-Disposition": f'attachment; filename="{excel_out.filename}"',
+        "X-Tawthiq-Sheets": str(excel_out.sheet_count),
+        "X-Tawthiq-Cells": str(excel_out.cell_count),
     }
     return Response(
-        content=excel.xlsx_bytes,
+        content=excel_out.xlsx_bytes,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers=headers,
     )
