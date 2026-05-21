@@ -9,6 +9,7 @@ import "./App.css";
 type AppState = "idle" | "validating" | "done" | "error";
 type TabKey = "saudi" | "indian";
 type IndianStage = "idle" | "extracting" | "validated" | "generating" | "blocked" | "editing" | "error";
+type ResultsView = "rules" | "fields";
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("saudi");
@@ -21,6 +22,7 @@ function App() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [duration, setDuration] = useState<number | undefined>(undefined);
   const [sector, setSector] = useState<string>("all");
+  const [resultsView, setResultsView] = useState<ResultsView>("rules");
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -54,6 +56,7 @@ function App() {
     setFileSize("");
     setPdfFile(null);
     setDuration(undefined);
+    setResultsView("rules");
   };
 
   const handleTabSwitch = (tab: TabKey) => {
@@ -83,23 +86,56 @@ function App() {
           <span>Tawtheeq</span>
         </div>
         <div className="nav-tabs">
-          {!hideSaudiTab && (
-            <button
-              type="button"
-              className={`nav-tab ${activeTab === "saudi" ? "nav-tab-active" : ""}`}
-              onClick={() => handleTabSwitch("saudi")}
-            >
-              PDF Validation
-            </button>
-          )}
-          {!hideIndianTab && (
-            <button
-              type="button"
-              className={`nav-tab ${activeTab === "indian" ? "nav-tab-active" : ""}`}
-              onClick={() => handleTabSwitch("indian")}
-            >
-              Indian XBRL Generation
-            </button>
+          {isSaudiResultsMode ? (
+            <>
+              <button
+                type="button"
+                className={`nav-tab ${resultsView === "rules" ? "nav-tab-active" : ""}`}
+                onClick={() => setResultsView("rules")}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 12l2 2 4-4" />
+                  <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />
+                </svg>
+                Validation Rules
+                {result && <span className="nav-tab-count">{result.summary.total}</span>}
+              </button>
+              <button
+                type="button"
+                className={`nav-tab ${resultsView === "fields" ? "nav-tab-active" : ""}`}
+                onClick={() => setResultsView("fields")}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="3" y1="9" x2="21" y2="9" />
+                  <line x1="3" y1="15" x2="21" y2="15" />
+                  <line x1="9" y1="3" x2="9" y2="21" />
+                </svg>
+                Extracted Fields
+                {result && <span className="nav-tab-count">{result.results.length}</span>}
+              </button>
+            </>
+          ) : (
+            <>
+              {!hideSaudiTab && (
+                <button
+                  type="button"
+                  className={`nav-tab ${activeTab === "saudi" ? "nav-tab-active" : ""}`}
+                  onClick={() => handleTabSwitch("saudi")}
+                >
+                  PDF Validation
+                </button>
+              )}
+              {!hideIndianTab && (
+                <button
+                  type="button"
+                  className={`nav-tab ${activeTab === "indian" ? "nav-tab-active" : ""}`}
+                  onClick={() => handleTabSwitch("indian")}
+                >
+                  Indian XBRL Generation
+                </button>
+              )}
+            </>
           )}
         </div>
         {isSaudiResultsMode && (
@@ -113,7 +149,14 @@ function App() {
       {activeTab === "saudi" && (
         <>
           {state === "done" && result && pdfFile && (
-            <ValidationViewer data={result} pdfFile={pdfFile} onReset={handleReset} duration={duration} />
+            <ValidationViewer
+              data={result}
+              pdfFile={pdfFile}
+              onReset={handleReset}
+              duration={duration}
+              view={resultsView}
+              onPickField={() => setResultsView("rules")}
+            />
           )}
 
           {state !== "done" && (

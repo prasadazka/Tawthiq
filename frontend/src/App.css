@@ -1316,47 +1316,8 @@
   position: relative;
 }
 
-/* — sidebar tab bar — */
-.viewer-tabbar {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-subtle);
-  padding: 8px 8px 0;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.viewer-tab {
-  background: transparent;
-  border: 1px solid transparent;
-  border-bottom: none;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 9px 14px 10px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 8px 8px 0 0;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-  margin-bottom: -1px;
-}
-
-.viewer-tab:hover {
-  color: var(--text-h);
-  background: var(--bg);
-}
-
-.viewer-tab.active {
-  color: var(--accent);
-  background: var(--bg);
-  border-color: var(--border);
-  border-bottom-color: var(--bg);
-}
-
-.viewer-tab-count {
+/* — nav tab badge count — */
+.nav-tab-count {
   font-size: 11px;
   font-weight: 700;
   background: var(--bg-subtle);
@@ -1364,12 +1325,49 @@
   padding: 1px 7px;
   border-radius: 999px;
   border: 1px solid var(--border);
+  margin-left: 6px;
 }
 
-.viewer-tab.active .viewer-tab-count {
+.nav-tab-active .nav-tab-count {
   background: var(--accent-bg);
   color: var(--accent);
   border-color: var(--accent-border);
+}
+
+.nav-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* — Fields-only view (full width) — */
+.viewer.viewer-fields {
+  background: var(--bg-subtle);
+  padding: 24px;
+  overflow-y: auto;
+  display: block;
+}
+
+.viewer-fields .fields-tab {
+  max-width: 1180px;
+  margin: 0 auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  height: auto;
+  min-height: calc(100vh - 100px);
+}
+
+.viewer-fields .fields-row {
+  grid-template-columns: minmax(220px, 1.4fr) minmax(280px, 3fr) auto;
+}
+
+@media (max-width: 720px) {
+  .viewer.viewer-fields {
+    padding: 12px;
+  }
 }
 
 /* ══════════════════════════════════════
