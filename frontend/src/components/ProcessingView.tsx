@@ -24,7 +24,14 @@ const GENERATE_STEPS: Step[] = [
   { id: "encode", label: "Encoding XBRL XML", detail: "UTF-16 encoding, MCA-portal compatible", etaSeconds: 2 },
 ];
 
-const TIPS = [
+const VALIDATE_STEPS: Step[] = [
+  { id: "upload", label: "File received", detail: "Verifying PDF signature and size", etaSeconds: 1 },
+  { id: "parse", label: "Reading the PDF", detail: "Extracting text and tables with PyMuPDF", etaSeconds: 3 },
+  { id: "ai", label: "AI rule evaluation", detail: "Gemini reads each section and answers 23 compliance checks", etaSeconds: 55 },
+  { id: "summary", label: "Compiling validation report", detail: "Aggregating pass/fail with evidence locations", etaSeconds: 2 },
+];
+
+const TIPS_XBRL = [
   "Gemini reads the full PDF natively — no OCR needed.",
   "The Excel workbook provides Note 7 PPE per-asset-class breakdown.",
   "Sheet \"Sch III Ratios\" supplies the 14 mandatory analytical ratios.",
@@ -35,10 +42,36 @@ const TIPS = [
   "Validation runs balance-sheet equation: Assets = Liabilities + Equity.",
 ];
 
+const TIPS_VALIDATE = [
+  "Both Arabic and English statements are supported.",
+  "Each rule cites the page and quotes the evidence it found.",
+  "Rules cover signatures, dates, totals, disclosures and required statements.",
+  "Pass/fail is auditable — every result links back to a PDF location.",
+  "Sector-specific rules apply for Banking, Insurance and NPO documents.",
+];
+
 interface Props {
-  mode: "extracting" | "generating";
+  mode: "extracting" | "generating" | "validating";
   fileSummary?: string;
 }
+
+const MODE_CONFIG: Record<Props["mode"], { steps: Step[]; tips: string[]; note: string }> = {
+  extracting: {
+    steps: EXTRACT_STEPS,
+    tips: TIPS_XBRL,
+    note: "Extracting & validating — typically 60–90 seconds",
+  },
+  generating: {
+    steps: GENERATE_STEPS,
+    tips: TIPS_XBRL,
+    note: "Generating XBRL — typically 5–10 seconds",
+  },
+  validating: {
+    steps: VALIDATE_STEPS,
+    tips: TIPS_VALIDATE,
+    note: "Reading PDF and running rules — typically 60–90 seconds",
+  },
+};
 
 function pad(n: number) {
   return n.toString().padStart(2, "0");
@@ -51,7 +84,7 @@ function formatElapsed(seconds: number) {
 }
 
 export default function ProcessingView({ mode, fileSummary }: Props) {
-  const steps = mode === "extracting" ? EXTRACT_STEPS : GENERATE_STEPS;
+  const { steps, tips, note } = MODE_CONFIG[mode];
 
   const [elapsed, setElapsed] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -84,10 +117,10 @@ export default function ProcessingView({ mode, fileSummary }: Props) {
   /* Rotate tip every 6 seconds */
   useEffect(() => {
     const id = window.setInterval(() => {
-      setTipIndex((i) => (i + 1) % TIPS.length);
+      setTipIndex((i) => (i + 1) % tips.length);
     }, 6000);
     return () => window.clearInterval(id);
-  }, []);
+  }, [tips.length]);
 
   const remaining = Math.max(0, totalEta - elapsed);
   const progressPct = Math.min(95, Math.round((elapsed / totalEta) * 100));
@@ -119,11 +152,7 @@ export default function ProcessingView({ mode, fileSummary }: Props) {
               className={`processing-summary-bar-fill progress-${Math.floor(progressPct / 10) * 10}`}
             />
           </div>
-          <span className="processing-summary-bar-note">
-            {mode === "extracting"
-              ? "Extracting & validating — typically 60–90 seconds"
-              : "Generating XBRL — typically 5–10 seconds"}
-          </span>
+          <span className="processing-summary-bar-note">{note}</span>
         </div>
         <div className="processing-summary-block processing-summary-block-right">
           <span className="processing-summary-label">Est. remaining</span>
@@ -173,7 +202,7 @@ export default function ProcessingView({ mode, fileSummary }: Props) {
             <path d="M12 2a7 7 0 0 0-4 12.7c.7.5 1 1.3 1 2.1V18h6v-1.2c0-.8.3-1.6 1-2.1A7 7 0 0 0 12 2z" />
           </svg>
         </div>
-        <span>{TIPS[tipIndex]}</span>
+        <span>{tips[tipIndex]}</span>
       </div>
     </div>
   );

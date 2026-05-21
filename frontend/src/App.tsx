@@ -2,6 +2,7 @@ import { useState } from "react";
 import UploadZone from "./components/UploadZone";
 import ValidationViewer from "./components/ValidationViewer";
 import IndianXBRL from "./components/IndianXBRL";
+import ProcessingView from "./components/ProcessingView";
 import { validateDocument, type ValidationResponse } from "./api";
 import "./App.css";
 
@@ -162,35 +163,7 @@ function App() {
                 )}
 
                 {state === "validating" && (
-                  <div className="validating-card">
-                    <div className="validating-file">
-                      <div className="file-thumb">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                      </div>
-                      <div>
-                        <p className="validating-name">{fileName}</p>
-                        <p className="validating-size">{fileSize}</p>
-                      </div>
-                    </div>
-                    <div className="progress-section">
-                      <div className="progress-bar"><div className="progress-fill" /></div>
-                      <p className="progress-label">Extracting text and running validation rules...</p>
-                    </div>
-                    <div className="validating-steps">
-                      <div className="step step-done">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
-                        File uploaded
-                      </div>
-                      <div className="step step-active">
-                        <div className="step-spinner" />
-                        Running Document AI OCR
-                      </div>
-                      <div className="step step-pending">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/></svg>
-                        Validating against 23 rules
-                      </div>
-                    </div>
-                  </div>
+                  <ProcessingView mode="validating" fileSummary={`${fileName} · ${fileSize}`} />
                 )}
 
                 {state === "error" && (
