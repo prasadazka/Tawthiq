@@ -123,6 +123,7 @@ export default function ProcessingView({ mode, fileSummary }: Props) {
   }, [tips.length]);
 
   const remaining = Math.max(0, totalEta - elapsed);
+  const overrun = elapsed > totalEta;
   const progressPct = Math.min(95, Math.round((elapsed / totalEta) * 100));
 
   return (
@@ -152,11 +153,17 @@ export default function ProcessingView({ mode, fileSummary }: Props) {
               className={`processing-summary-bar-fill progress-${Math.floor(progressPct / 10) * 10}`}
             />
           </div>
-          <span className="processing-summary-bar-note">{note}</span>
+          <span className="processing-summary-bar-note">
+            {overrun ? "Taking a little longer than usual — still working" : note}
+          </span>
         </div>
         <div className="processing-summary-block processing-summary-block-right">
-          <span className="processing-summary-label">Est. remaining</span>
-          <span className="processing-summary-value">~{formatElapsed(remaining)}</span>
+          <span className="processing-summary-label">{overrun ? "Status" : "Est. remaining"}</span>
+          {overrun ? (
+            <span className="processing-summary-value processing-status-working">Working…</span>
+          ) : (
+            <span className="processing-summary-value">~{formatElapsed(remaining)}</span>
+          )}
         </div>
       </div>
 

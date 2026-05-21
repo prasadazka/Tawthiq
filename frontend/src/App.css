@@ -737,6 +737,17 @@
   letter-spacing: -0.01em;
 }
 
+.processing-status-working {
+  color: var(--accent);
+  animation: processing-pulse 1.6s ease-in-out infinite;
+  font-size: 18px !important;
+}
+
+@keyframes processing-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
 .processing-summary-bar {
   display: flex;
   flex-direction: column;
@@ -1361,7 +1372,7 @@
 }
 
 .viewer-fields .fields-row {
-  grid-template-columns: minmax(220px, 1.4fr) minmax(280px, 3fr) auto;
+  grid-template-columns: 40px minmax(220px, 1.2fr) minmax(360px, 3fr) auto;
 }
 
 @media (max-width: 720px) {
@@ -1382,11 +1393,59 @@
   background: var(--bg);
 }
 
-.fields-toolbar {
+.fields-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fields-header-titles h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-h);
+  letter-spacing: -0.02em;
+}
+
+.fields-header-titles p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.fields-header-coverage {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px 16px;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.fields-coverage-num {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.fields-coverage-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+
+.fields-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 24px;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
   flex-shrink: 0;
@@ -1396,6 +1455,8 @@
   position: relative;
   display: flex;
   align-items: center;
+  flex: 1;
+  min-width: 0;
 }
 
 .fields-search svg {
@@ -1485,12 +1546,66 @@
 
 .fields-row {
   display: grid;
-  grid-template-columns: minmax(140px, 1.2fr) minmax(160px, 2fr) auto;
-  gap: 12px;
-  padding: 12px 16px;
+  grid-template-columns: 40px minmax(180px, 1.2fr) minmax(280px, 3fr) auto;
+  gap: 16px;
+  padding: 14px 24px;
   border-bottom: 1px solid var(--border);
   align-items: flex-start;
   font-size: 13px;
+}
+
+.fields-row:last-child {
+  border-bottom: none;
+}
+
+.fields-cell-index {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  padding-top: 1px;
+}
+
+.fields-cell-status {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.fields-status-pill {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.fields-status-pill.pill-pass {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+
+.fields-status-pill.pill-fail {
+  color: var(--text-h);
+  background: var(--bg);
+  border-color: var(--text-h);
+}
+
+.fields-status-pill.pill-skip,
+.fields-status-pill.pill-not_applicable {
+  color: var(--text);
+  background: var(--bg-subtle);
+}
+
+.fields-status-pill.pill-error {
+  color: var(--text-h);
+  border-color: var(--text-h);
 }
 
 .fields-row-head {
@@ -1580,36 +1695,6 @@
   font-style: italic;
 }
 
-.fields-cell-pages {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.fields-page-tag {
-  background: var(--bg-subtle);
-  border: 1px solid var(--border);
-  color: var(--accent);
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-
-.fields-page-tag:hover {
-  background: var(--accent-bg);
-  border-color: var(--accent);
-}
-
-.fields-page-empty {
-  font-size: 12px;
-  color: var(--text);
-}
-
 .fields-empty {
   padding: 40px 16px;
   text-align: center;
@@ -1617,20 +1702,43 @@
   font-size: 13px;
 }
 
+.fields-cell-value-primary {
+  font-size: 14px;
+  font-weight: 500;
+}
+
 @media (max-width: 900px) {
   .viewer-sidebar {
     width: 100%;
     min-width: 0;
   }
+  .fields-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 16px 18px 14px;
+  }
+  .fields-header-coverage {
+    align-items: flex-start;
+  }
+  .fields-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px 18px;
+  }
   .fields-row {
     grid-template-columns: 1fr;
     gap: 6px;
+    padding: 14px 18px;
   }
   .fields-row-head {
     display: none;
   }
-  .fields-cell-pages {
-    justify-content: flex-start;
+  .fields-cell-index {
+    display: none;
+  }
+  .fields-cell-status {
+    margin-top: 4px;
   }
 }
 

@@ -3,7 +3,8 @@ import type { RuleResult } from "../api";
 
 interface Props {
   results: RuleResult[];
-  onPageClick: (ruleId: string, page: number) => void;
+  /** Unused in this view — kept for backwards compatibility with ValidationViewer. */
+  onPageClick?: (ruleId: string, page: number) => void;
 }
 
 type Filter = "all" | "found" | "missing";
@@ -13,21 +14,24 @@ const STATUS_LABEL: Record<string, string> = {
   fail: "Missing",
   skip: "Skipped",
   error: "Error",
-  not_applicable: "N/A",
+  not_applicable: "Not Applicable",
 };
 
-/* Split details "<evidence> | <ai explanation>" into a primary value
-   and an optional secondary line. */
+/* details string has the format "<evidence/value> | <ai_explanation>".
+   For the data table we want the EVIDENCE — the actual extracted value — as the
+   primary content. The explanation is shown as a smaller secondary line. */
 function parseEvidence(details: string): { value: string; explanation: string } {
   if (!details) return { value: "—", explanation: "" };
-  const parts = details.split("|").map((s) => s.trim());
-  if (parts.length >= 2) {
-    return { value: parts[0] || "—", explanation: parts.slice(1).join(" | ").trim() };
-  }
-  return { value: parts[0] || "—", explanation: "" };
+  const trimmed = details.trim();
+  if (!trimmed) return { value: "—", explanation: "" };
+  const idx = trimmed.indexOf("|");
+  if (idx === -1) return { value: trimmed, explanation: "" };
+  const value = trimmed.slice(0, idx).trim();
+  const explanation = trimmed.slice(idx + 1).trim();
+  return { value: value || "—", explanation };
 }
 
-export default function FieldsTable({ results, onPageClick }: Props) {
+export default function FieldsTable({ results }: Props) {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
 
@@ -45,16 +49,32 @@ export default function FieldsTable({ results, onPageClick }: Props) {
     });
   }, [results, filter, query]);
 
-  const counts = useMemo(() => {
-    return {
+  const counts = useMemo(
+    () => ({
       all: results.length,
       found: results.filter((r) => r.status === "pass").length,
       missing: results.filter((r) => r.status === "fail").length,
-    };
-  }, [results]);
+    }),
+    [results]
+  );
+
+  const coverage = counts.all > 0 ? Math.round((counts.found / counts.all) * 100) : 0;
 
   return (
     <div className="fields-tab">
+      <header className="fields-header">
+        <div className="fields-header-titles">
+          <h2>Extracted Fields</h2>
+          <p>Every value the AI pulled from the document, in one place. No PDF needed.</p>
+        </div>
+        <div className="fields-header-coverage">
+          <span className="fields-coverage-num">{coverage}%</span>
+          <span className="fields-coverage-label">
+            {counts.found} of {counts.all} fields extracted
+          </span>
+        </div>
+      </header>
+
       <div className="fields-toolbar">
         <div className="fields-search">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -63,7 +83,7 @@ export default function FieldsTable({ results, onPageClick }: Props) {
           </svg>
           <input
             type="text"
-            placeholder="Search fields…"
+            placeholder="Search fields or values…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -95,44 +115,38 @@ export default function FieldsTable({ results, onPageClick }: Props) {
 
       <div className="fields-table" role="table">
         <div className="fields-row fields-row-head" role="row">
+          <span role="columnheader">#</span>
           <span role="columnheader">Field</span>
           <span role="columnheader">Extracted value</span>
-          <span role="columnheader">Pages</span>
+          <span role="columnheader">Status</span>
         </div>
         {filtered.length === 0 && (
           <div className="fields-empty">No matching fields</div>
         )}
-        {filtered.map((r) => {
+        {filtered.map((r, idx) => {
           const { value, explanation } = parseEvidence(r.details);
-          const hasPages = r.locations && r.locations.length > 0;
           return (
             <div key={r.rule_id} className={`fields-row fields-status-${r.status}`} role="row">
+              <div className="fields-cell fields-cell-index" role="cell">
+                {idx + 1}
+              </div>
               <div className="fields-cell fields-cell-field" role="cell">
                 <span className={`fields-status-dot dot-${r.status}`} />
                 <div className="fields-cell-field-text">
                   <span className="fields-cell-name">{r.rule_name}</span>
-                  <span className="fields-cell-id">{r.rule_id} · {STATUS_LABEL[r.status] || r.status}</span>
+                  <span className="fields-cell-id">{r.rule_id}</span>
                 </div>
               </div>
               <div className="fields-cell fields-cell-value" role="cell">
                 <span className="fields-cell-value-primary">{value}</span>
-                {explanation && <span className="fields-cell-value-secondary">{explanation}</span>}
-              </div>
-              <div className="fields-cell fields-cell-pages" role="cell">
-                {hasPages ? (
-                  r.locations.map((l, idx) => (
-                    <button
-                      key={`${l.page}-${idx}`}
-                      type="button"
-                      className="fields-page-tag"
-                      onClick={() => onPageClick(r.rule_id, l.page)}
-                    >
-                      p.{l.page}
-                    </button>
-                  ))
-                ) : (
-                  <span className="fields-page-empty">—</span>
+                {explanation && (
+                  <span className="fields-cell-value-secondary">{explanation}</span>
                 )}
+              </div>
+              <div className="fields-cell fields-cell-status" role="cell">
+                <span className={`fields-status-pill pill-${r.status}`}>
+                  {STATUS_LABEL[r.status] || r.status}
+                </span>
               </div>
             </div>
           );
