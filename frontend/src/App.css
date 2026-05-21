@@ -1305,8 +1305,8 @@
 
 /* ── Sidebar ── */
 .viewer-sidebar {
-  width: 400px;
-  min-width: 400px;
+  width: 460px;
+  min-width: 460px;
   border-right: 1px solid var(--border);
   overflow: hidden;
   background: var(--bg);
@@ -1314,6 +1314,326 @@
   flex-direction: column;
   height: 100%;
   position: relative;
+}
+
+/* — sidebar tab bar — */
+.viewer-tabbar {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+  padding: 8px 8px 0;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.viewer-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 14px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px 8px 0 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+
+.viewer-tab:hover {
+  color: var(--text-h);
+  background: var(--bg);
+}
+
+.viewer-tab.active {
+  color: var(--accent);
+  background: var(--bg);
+  border-color: var(--border);
+  border-bottom-color: var(--bg);
+}
+
+.viewer-tab-count {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--bg-subtle);
+  color: var(--text);
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.viewer-tab.active .viewer-tab-count {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+/* ══════════════════════════════════════
+   Fields Table (Extracted Fields tab)
+   ══════════════════════════════════════ */
+
+.fields-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.fields-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.fields-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.fields-search svg {
+  position: absolute;
+  left: 10px;
+  color: var(--text);
+  pointer-events: none;
+}
+
+.fields-search input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 10px 8px 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-subtle);
+  color: var(--text-h);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.fields-search input::placeholder {
+  color: var(--text);
+}
+
+.fields-search input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--bg);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+.fields-filters {
+  display: flex;
+  gap: 6px;
+}
+
+.fields-filter {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.fields-filter span {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--bg);
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.fields-filter:hover {
+  color: var(--text-h);
+  border-color: var(--accent-border);
+}
+
+.fields-filter.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.fields-filter.active span {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-color: transparent;
+}
+
+.fields-table {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.fields-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.2fr) minmax(160px, 2fr) auto;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  align-items: flex-start;
+  font-size: 13px;
+}
+
+.fields-row-head {
+  position: sticky;
+  top: 0;
+  background: var(--bg-subtle);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  padding-top: 9px;
+  padding-bottom: 9px;
+  z-index: 1;
+}
+
+.fields-row:not(.fields-row-head):hover {
+  background: var(--accent-bg);
+}
+
+.fields-cell {
+  min-width: 0;
+}
+
+.fields-cell-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.fields-cell-field-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fields-cell-name {
+  font-weight: 600;
+  color: var(--text-h);
+  line-height: 1.3;
+}
+
+.fields-cell-id {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.fields-status-dot {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-top: 5px;
+  background: var(--text);
+}
+
+.fields-status-dot.dot-pass { background: var(--accent); }
+.fields-status-dot.dot-fail { background: var(--text-h); }
+.fields-status-dot.dot-skip,
+.fields-status-dot.dot-not_applicable { background: var(--border); }
+.fields-status-dot.dot-error { background: var(--text-h); }
+
+.fields-cell-value {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  word-break: break-word;
+}
+
+.fields-cell-value-primary {
+  color: var(--text-h);
+  line-height: 1.4;
+}
+
+.fields-cell-value-secondary {
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.fields-row.fields-status-fail .fields-cell-value-primary {
+  color: var(--text);
+  font-style: italic;
+}
+
+.fields-cell-pages {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.fields-page-tag {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.fields-page-tag:hover {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}
+
+.fields-page-empty {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.fields-empty {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--text);
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .viewer-sidebar {
+    width: 100%;
+    min-width: 0;
+  }
+  .fields-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .fields-row-head {
+    display: none;
+  }
+  .fields-cell-pages {
+    justify-content: flex-start;
+  }
 }
 
 /* ── PDF Area ── */
