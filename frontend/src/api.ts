@@ -19,6 +19,7 @@ export interface RuleResult {
   details: string;
   severity: string;
   locations: RuleLocation[];
+  evidence_quotes?: string[];
 }
 
 export interface ValidationResponse {

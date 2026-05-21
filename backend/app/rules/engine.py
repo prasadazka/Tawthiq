@@ -26,6 +26,7 @@ class RuleResult:
     details: str
     severity: str
     locations: list[dict] = field(default_factory=list)
+    evidence_quotes: list[str] = field(default_factory=list)
 
 
 def _parse_llm_json(raw: str) -> dict:
@@ -55,6 +56,7 @@ def _build_rule_result(rule: Rule, data: dict) -> RuleResult:
         status=status, details=details.strip(" |"),
         severity=rule.severity.value,
         locations=locations,
+        evidence_quotes=[q for q in evidence_quotes if isinstance(q, str) and q.strip()],
     )
 
 
@@ -355,6 +357,7 @@ def run_rules(
             "severity": r.severity,
             "pages": [loc["page"] for loc in r.locations if loc.get("page")],
             "locations": r.locations,
+            "evidence_quotes": r.evidence_quotes,
         }
         for r in ordered_results
     ]

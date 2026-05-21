@@ -17,18 +17,26 @@ const STATUS_LABEL: Record<string, string> = {
   not_applicable: "Not Applicable",
 };
 
-/* details string has the format "<evidence/value> | <ai_explanation>".
-   For the data table we want the EVIDENCE — the actual extracted value — as the
-   primary content. The explanation is shown as a smaller secondary line. */
-function parseEvidence(details: string): { value: string; explanation: string } {
-  if (!details) return { value: "—", explanation: "" };
-  const trimmed = details.trim();
-  if (!trimmed) return { value: "—", explanation: "" };
+/* Build the "extracted value" display for a rule row.
+   Priority:
+   1. evidence_quotes[] — these are verbatim strings the AI pulled from the PDF.
+   2. The "evidence" half of details ("<evidence> | <explanation>").
+   3. Whole details string.
+   Returns the verbatim quotes (if any) plus a secondary line with the rule's
+   own narrative finding. */
+function buildExtractedDisplay(r: { details: string; evidence_quotes?: string[] }):
+  { quotes: string[]; summary: string } {
+  const quotes = (r.evidence_quotes || []).map((q) => q.trim()).filter(Boolean);
+
+  const trimmed = (r.details || "").trim();
+  let summary = trimmed;
   const idx = trimmed.indexOf("|");
-  if (idx === -1) return { value: trimmed, explanation: "" };
-  const value = trimmed.slice(0, idx).trim();
-  const explanation = trimmed.slice(idx + 1).trim();
-  return { value: value || "—", explanation };
+  if (idx !== -1) {
+    const right = trimmed.slice(idx + 1).trim();
+    if (right) summary = right;
+  }
+
+  return { quotes, summary };
 }
 
 export default function FieldsTable({ results }: Props) {
@@ -124,7 +132,8 @@ export default function FieldsTable({ results }: Props) {
           <div className="fields-empty">No matching fields</div>
         )}
         {filtered.map((r, idx) => {
-          const { value, explanation } = parseEvidence(r.details);
+          const { quotes, summary } = buildExtractedDisplay(r);
+          const hasQuotes = quotes.length > 0;
           return (
             <div key={r.rule_id} className={`fields-row fields-status-${r.status}`} role="row">
               <div className="fields-cell fields-cell-index" role="cell">
@@ -138,9 +147,23 @@ export default function FieldsTable({ results }: Props) {
                 </div>
               </div>
               <div className="fields-cell fields-cell-value" role="cell">
-                <span className="fields-cell-value-primary">{value}</span>
-                {explanation && (
-                  <span className="fields-cell-value-secondary">{explanation}</span>
+                {hasQuotes ? (
+                  <ul className="fields-quotes">
+                    {quotes.map((q, i) => (
+                      <li key={i} className="fields-quote">
+                        <span className="fields-quote-mark">“</span>
+                        {q}
+                        <span className="fields-quote-mark">”</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <span className="fields-cell-value-primary fields-cell-value-empty">
+                    {r.status === "pass" ? "Found — no verbatim quote captured" : "Not extracted"}
+                  </span>
+                )}
+                {summary && (
+                  <span className="fields-cell-value-secondary">{summary}</span>
                 )}
               </div>
               <div className="fields-cell fields-cell-status" role="cell">
