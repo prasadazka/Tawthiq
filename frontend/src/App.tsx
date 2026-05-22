@@ -126,7 +126,7 @@ function App() {
                   PDF Validation
                 </button>
               )}
-              {!hideIndianTab && (
+              {false && !hideIndianTab && (
                 <button
                   type="button"
                   className={`nav-tab ${activeTab === "indian" ? "nav-tab-active" : ""}`}
