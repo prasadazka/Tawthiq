@@ -126,6 +126,7 @@ function App() {
                   PDF Validation
                 </button>
               )}
+              {/* Indian XBRL tab hidden — set SHOW_INDIAN_TAB to true to re-enable. */}
               {false && !hideIndianTab && (
                 <button
                   type="button"
