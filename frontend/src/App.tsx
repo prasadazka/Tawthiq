@@ -2,19 +2,22 @@ import { useState } from "react";
 import UploadZone from "./components/UploadZone";
 import ValidationViewer from "./components/ValidationViewer";
 import IndianXBRL from "./components/IndianXBRL";
+import PdfTables from "./components/PdfTables";
 import ProcessingView from "./components/ProcessingView";
 import { validateDocument, type ValidationResponse } from "./api";
 import "./App.css";
 
 type AppState = "idle" | "validating" | "done" | "error";
-type TabKey = "saudi" | "indian";
+type TabKey = "saudi" | "indian" | "tables";
 type IndianStage = "idle" | "extracting" | "validated" | "generating" | "blocked" | "editing" | "error";
+type TablesStage = "idle" | "extracting" | "done" | "error";
 type ResultsView = "rules" | "fields";
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("saudi");
   const [state, setState] = useState<AppState>("idle");
   const [indianStage, setIndianStage] = useState<IndianStage>("idle");
+  const [tablesStage, setTablesStage] = useState<TablesStage>("idle");
   const [result, setResult] = useState<ValidationResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
@@ -71,8 +74,10 @@ function App() {
   // OTHER tab button so they can't accidentally switch and lose their work.
   const saudiCommitted = state === "validating" || state === "done";
   const indianCommitted = indianStage !== "idle" && indianStage !== "error";
-  const hideSaudiTab = activeTab === "indian" && indianCommitted;
+  const tablesCommitted = tablesStage !== "idle" && tablesStage !== "error";
+  const hideSaudiTab = (activeTab === "indian" && indianCommitted) || (activeTab === "tables" && tablesCommitted);
   const hideIndianTab = activeTab === "saudi" && saudiCommitted;
+  const hideTablesTab = (activeTab === "saudi" && saudiCommitted) || (activeTab === "indian" && indianCommitted);
 
   return (
     <div className={`app ${isSaudiResultsMode ? "app-viewer-mode" : ""}`}>
@@ -124,6 +129,22 @@ function App() {
                   onClick={() => handleTabSwitch("saudi")}
                 >
                   PDF Validation
+                </button>
+              )}
+              {!hideTablesTab && (
+                <button
+                  type="button"
+                  className={`nav-tab ${activeTab === "tables" ? "nav-tab-active" : ""}`}
+                  onClick={() => handleTabSwitch("tables")}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <line x1="3" y1="9" x2="21" y2="9" />
+                    <line x1="3" y1="15" x2="21" y2="15" />
+                    <line x1="9" y1="3" x2="9" y2="21" />
+                    <line x1="15" y1="3" x2="15" y2="21" />
+                  </svg>
+                  PDF Tables
                 </button>
               )}
               {/* Indian XBRL tab hidden — set SHOW_INDIAN_TAB to true to re-enable. */}
@@ -238,6 +259,18 @@ function App() {
           </main>
           <footer className="footer">
             <p>Tawtheeq &middot; Indian XBRL Generator (ICAI Taxonomy 2016-03-31)</p>
+          </footer>
+        </>
+      )}
+
+      {/* PDF TABLES TAB */}
+      {activeTab === "tables" && (
+        <>
+          <main className="main">
+            <PdfTables onStageChange={setTablesStage} />
+          </main>
+          <footer className="footer">
+            <p>Tawtheeq &middot; Generic PDF Table Extraction</p>
           </footer>
         </>
       )}

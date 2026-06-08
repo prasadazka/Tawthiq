@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.routes.pdf_tables import router as pdf_tables_router
 from app.routes.rules import router as rules_router
 from app.routes.validate import router as validate_router
 from app.routes.xbrl_india import router as xbrl_india_router
@@ -22,6 +23,7 @@ app.add_middleware(
 app.include_router(rules_router)
 app.include_router(validate_router)
 app.include_router(xbrl_india_router)
+app.include_router(pdf_tables_router)
 
 
 @app.get("/api/health")

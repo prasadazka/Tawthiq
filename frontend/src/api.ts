@@ -173,6 +173,52 @@ export async function validateXBRLXML(xml: string): Promise<XMLValidationRespons
   return res.json();
 }
 
+// ─── PDF Tables Extraction (generic, any PDF) ───────────────────────────────
+
+export interface PdfTableRow {
+  [columnName: string]: string | number | null;
+}
+
+export interface PdfTable {
+  table_id: string;
+  found: boolean;
+  page: number | null;
+  title_as_printed?: string | null;
+  target_title?: string | null;
+  category?: string | null;
+  columns: string[];
+  rows: PdfTableRow[];
+  currency?: string | null;
+  notes?: string | null;
+  error?: string;
+}
+
+export interface PdfTablesResponse {
+  filename: string;
+  success: boolean;
+  page_count: number;
+  table_count_inventory: number;
+  table_count_extracted: number;
+  total_rows: number;
+  extraction_seconds: number;
+  total_seconds: number;
+  tables: PdfTable[];
+}
+
+export async function extractPdfTables(file: File): Promise<PdfTablesResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${API_BASE}/api/pdf-tables/extract`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Extraction failed" }));
+    throw new Error(err.detail || `Server error: ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function downloadEditedXBRL(xml: string, filename: string): Promise<Blob> {
   const res = await fetch(`${API_BASE}/api/xbrl/india/download-xml`, {
     method: "POST",
