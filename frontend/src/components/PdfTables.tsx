@@ -79,7 +79,7 @@ export default function PdfTables({ onStageChange }: Props = {}) {
       )}
 
       {stage === "extracting" && (
-        <ProcessingView mode="extracting" fileSummary={`${fileName} · ${fileSize}`} />
+        <ProcessingView mode="pdf_tables" fileSummary={`${fileName} · ${fileSize}`} />
       )}
 
       {stage === "done" && result && (

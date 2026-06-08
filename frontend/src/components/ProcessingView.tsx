@@ -31,6 +31,14 @@ const VALIDATE_STEPS: Step[] = [
   { id: "summary", label: "Compiling validation report", detail: "Aggregating pass/fail with evidence locations", etaSeconds: 2 },
 ];
 
+const PDF_TABLES_STEPS: Step[] = [
+  { id: "upload", label: "File received", detail: "Verifying PDF signature and size", etaSeconds: 1 },
+  { id: "parse", label: "Reading the PDF", detail: "Indexing pages with PyMuPDF", etaSeconds: 2 },
+  { id: "inventory", label: "Inventorying tables in the PDF", detail: "Gemini enumerates every table on every page", etaSeconds: 25 },
+  { id: "extract", label: "Extracting each table", detail: "Running Gemini in parallel — one call per table for structured rows", etaSeconds: 45 },
+  { id: "assemble", label: "Assembling results", detail: "Sorting by page, normalising columns, attaching categories", etaSeconds: 2 },
+];
+
 const TIPS_XBRL = [
   "Gemini reads the full PDF natively — no OCR needed.",
   "The Excel workbook provides Note 7 PPE per-asset-class breakdown.",
@@ -50,8 +58,18 @@ const TIPS_VALIDATE = [
   "Sector-specific rules apply for Banking, Insurance and NPO documents.",
 ];
 
+const TIPS_PDF_TABLES = [
+  "Inventory first, extract second — keeps the model focused per table.",
+  "Tables rotated 90° (landscape on portrait page) are read in their natural order.",
+  "Parentheses are negatives: \"(1,234)\" becomes -1234.",
+  "Multi-line column headers are joined into a single space-separated string.",
+  "When a year column says \"31 December 2025\", it's kept as its own column.",
+  "Narrative paragraphs that look like tables are intentionally skipped.",
+  "Same pipeline works for Saudi audits, Indian filings, and any other PDF.",
+];
+
 interface Props {
-  mode: "extracting" | "generating" | "validating";
+  mode: "extracting" | "generating" | "validating" | "pdf_tables";
   fileSummary?: string;
 }
 
@@ -70,6 +88,11 @@ const MODE_CONFIG: Record<Props["mode"], { steps: Step[]; tips: string[]; note: 
     steps: VALIDATE_STEPS,
     tips: TIPS_VALIDATE,
     note: "Reading PDF and running rules — typically 60–90 seconds",
+  },
+  pdf_tables: {
+    steps: PDF_TABLES_STEPS,
+    tips: TIPS_PDF_TABLES,
+    note: "Inventory + per-table extraction — typically 60–90 seconds",
   },
 };
 
