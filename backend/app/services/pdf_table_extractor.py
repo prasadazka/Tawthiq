@@ -46,7 +46,9 @@ For EACH table return:
   reconciliation, segment, related_party, fair_value, maturity, kpi, other]
 - page: 1-indexed page number where the table starts
 - row_count_approx: approximate data row count
-- column_count: number of data columns
+- column_count: TOTAL number of columns INCLUDING the leftmost line-item /
+  description column (which is almost always present even when its header
+  is blank).
 
 Output ONLY valid JSON:
 {"total_tables": <int>, "tables": [...]}
@@ -73,8 +75,21 @@ TASK: Find this exact table in the PDF and return its FULL content as
 structured JSON. Use the title and page as anchors. If the table spans
 multiple pages, collect rows from ALL pages.
 
+COLUMNS — CAPTURE EVERY COLUMN, ESPECIALLY THE FIRST ONE:
+- Almost every financial table has a LEFTMOST DESCRIPTION COLUMN — the
+  line-item name (e.g. "Cash and bank balances", "Trade receivables",
+  "Revenue", "Cost of revenue"). YOU MUST INCLUDE THIS COLUMN.
+- The description column's header in the PDF is often BLANK, or labelled
+  "Item", "Description", "Particulars", or matches the table title.
+  If the header is blank, name the column "line_item" or "description".
+- Other typical columns: "Notes" (note-reference number), value columns
+  named by date ("31 December 2025"), or comparatives ("2025", "2024").
+- NEVER drop a column. If a column has no header, infer a sensible key.
+- "rows" must NEVER be just numbers. Every row must include the line-item
+  text from the description column.
+
 ORIENTATION & LAYOUT:
-- Tables may be ROTATED 90° (landscape on a portrait page). Read in natural order.
+- Tables may be ROTATED 90° (landscape on a portrait page). Read naturally.
 - Multi-line column headers join into one space-separated string.
 - Empty cells / dashes → null. "0" stays 0. Numbers in parens are negative: "(1,234)" → -1234.
 
@@ -88,11 +103,18 @@ OUTPUT SHAPE (JSON only, no markdown):
   "found": true|false,
   "page": <int>,
   "title_as_printed": "<exact heading from PDF>",
-  "columns": ["<col1>", "<col2>", ...],
-  "rows": [{{"<col1>": <value>, "<col2>": <value>, ...}}, ...],
+  "columns": ["line_item", "Notes", "31 December 2025", "31 December 2024"],
+  "rows": [
+    {{"line_item": "Cash and bank balances", "Notes": "9", "31 December 2025": 2524035458, "31 December 2024": 916090738}},
+    ...
+  ],
   "currency": "SAR" | "USD" | "INR" | null,
   "notes": null | "<one short caveat>"
 }}
+
+The example above shows the REQUIRED shape — the first column is always the
+line-item description. NEVER return rows that only contain numbers without
+the corresponding line-item name.
 
 NEVER invent rows. If the table cannot be found, set found=false rows=[].
 Return ONLY the JSON object now.
