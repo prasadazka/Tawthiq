@@ -82,15 +82,6 @@ function App() {
         currency: "SAR",
       });
       setXbrlResult(data);
-      // Trigger download
-      const url = URL.createObjectURL(data.blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = data.filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     } catch (err) {
       setXbrlError(err instanceof Error ? err.message : "XBRL generation failed");
     } finally {

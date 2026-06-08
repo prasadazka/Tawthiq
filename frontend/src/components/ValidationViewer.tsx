@@ -242,28 +242,7 @@ function XbrlPanel({
       )}
 
       {result ? (
-        <div className="xbrl-result-card">
-          <div className="xbrl-result-stats">
-            <div className="xbrl-result-stat">
-              <span className="xbrl-result-stat-num">{result.coveragePct.toFixed(1)}%</span>
-              <span className="xbrl-result-stat-label">Coverage</span>
-            </div>
-            <div className="xbrl-result-stat">
-              <span className="xbrl-result-stat-num">{result.found}</span>
-              <span className="xbrl-result-stat-label">Facts emitted</span>
-            </div>
-            <div className="xbrl-result-stat">
-              <span className="xbrl-result-stat-num">{result.elapsedSeconds.toFixed(1)}s</span>
-              <span className="xbrl-result-stat-label">Build time</span>
-            </div>
-          </div>
-          <p className="xbrl-result-note">
-            XBRL XML download was triggered. Click below to regenerate or re-download.
-          </p>
-          <button type="button" className="btn btn-outline" onClick={onGenerate} disabled={!ready}>
-            Regenerate XBRL
-          </button>
-        </div>
+        <XbrlResultCard result={result} onRegenerate={onGenerate} ready={ready} />
       ) : (
         <div className="xbrl-cta">
           <button
@@ -280,6 +259,82 @@ function XbrlPanel({
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+function XbrlResultCard({
+  result, onRegenerate, ready,
+}: {
+  result: SaudiXBRLGenerateResult;
+  onRegenerate?: () => void;
+  ready: boolean;
+}) {
+  const downloadUrl = useMemo(() => URL.createObjectURL(result.blob), [result.blob]);
+  useEffect(() => () => URL.revokeObjectURL(downloadUrl), [downloadUrl]);
+
+  const formatBytes = (n: number) => {
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+    return `${(n / 1024 / 1024).toFixed(2)} MB`;
+  };
+
+  const preview = useMemo(() => {
+    // Cap at first ~80 lines so the panel stays usable.
+    const lines = result.xml.split("\n");
+    if (lines.length <= 80) return result.xml;
+    return lines.slice(0, 80).join("\n") + "\n…\n" + lines.slice(-3).join("\n");
+  }, [result.xml]);
+
+  return (
+    <div className="xbrl-result-card">
+      <div className="xbrl-result-stats">
+        <div className="xbrl-result-stat">
+          <span className="xbrl-result-stat-num">{result.coveragePct.toFixed(1)}%</span>
+          <span className="xbrl-result-stat-label">Coverage</span>
+        </div>
+        <div className="xbrl-result-stat">
+          <span className="xbrl-result-stat-num">{result.found}</span>
+          <span className="xbrl-result-stat-label">Facts emitted</span>
+        </div>
+        <div className="xbrl-result-stat">
+          <span className="xbrl-result-stat-num">{result.elapsedSeconds.toFixed(1)}s</span>
+          <span className="xbrl-result-stat-label">Build time</span>
+        </div>
+      </div>
+
+      <div className="xbrl-download-row">
+        <div className="xbrl-download-meta">
+          <span className="xbrl-download-name">{result.filename}</span>
+          <span className="xbrl-download-size">{formatBytes(result.byteSize)} · XBRL XML</span>
+        </div>
+        <a
+          href={downloadUrl}
+          download={result.filename}
+          className="btn btn-primary btn-large xbrl-download-btn"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download XBRL XML
+        </a>
+      </div>
+
+      <details className="xbrl-preview">
+        <summary>Preview generated XBRL</summary>
+        <pre className="xbrl-preview-content">{preview}</pre>
+      </details>
+
+      <button
+        type="button"
+        className="btn btn-outline btn-sm xbrl-regen-btn"
+        onClick={onRegenerate}
+        disabled={!ready}
+      >
+        Regenerate
+      </button>
     </div>
   );
 }

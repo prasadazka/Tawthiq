@@ -218,6 +218,8 @@ export interface SaudiXBRLMetadata {
 
 export interface SaudiXBRLGenerateResult {
   blob: Blob;
+  xml: string;       // decoded UTF-8 text — for preview
+  byteSize: number;  // blob size in bytes
   filename: string;
   total: number;
   found: number;
@@ -247,8 +249,11 @@ export async function generateSaudiXBRL(
     throw new Error(err.detail || `Server error: ${res.status}`);
   }
   const blob = await res.blob();
+  const xml = await blob.text();
   return {
     blob,
+    xml,
+    byteSize: blob.size,
     filename,
     total: parseInt(res.headers.get("x-tawthiq-concepts-total") || "0", 10),
     found: parseInt(res.headers.get("x-tawthiq-concepts-found") || "0", 10),
