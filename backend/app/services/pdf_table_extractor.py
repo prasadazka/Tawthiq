@@ -72,49 +72,82 @@ TARGET TABLE:
 - category: {category}
 
 TASK: Find this exact table in the PDF and return its FULL content as
-structured JSON. Use the title and page as anchors. If the table spans
-multiple pages, collect rows from ALL pages.
+structured JSON, with HIGH FIDELITY to the PDF's actual column structure.
 
-COLUMNS — CAPTURE EVERY COLUMN, ESPECIALLY THE FIRST ONE:
-- Almost every financial table has a LEFTMOST DESCRIPTION COLUMN — the
-  line-item name (e.g. "Cash and bank balances", "Trade receivables",
-  "Revenue", "Cost of revenue"). YOU MUST INCLUDE THIS COLUMN.
-- The description column's header in the PDF is often BLANK, or labelled
-  "Item", "Description", "Particulars", or matches the table title.
-  If the header is blank, name the column "line_item" or "description".
-- Other typical columns: "Notes" (note-reference number), value columns
-  named by date ("31 December 2025"), or comparatives ("2025", "2024").
-- NEVER drop a column. If a column has no header, infer a sensible key.
-- "rows" must NEVER be just numbers. Every row must include the line-item
-  text from the description column.
+──────────────────────────────────────────────────────────────────────────
+COLUMN-FIDELITY RULES (READ CAREFULLY — most common failure mode):
 
+1. COUNT every column the PDF actually has, left-to-right, BEFORE deciding
+   on column keys. Typical financial-statement layout (left → right):
+       [description] [Notes] [latest year] [prior year]
+   That is FOUR columns. Sometimes only three (no notes), sometimes five
+   or more (multi-period comparatives, sub-period columns, etc.).
+
+2. PRESERVE the column order exactly as printed. Do NOT reorder.
+
+3. For each column, the "columns" array key MUST describe what the PDF's
+   physical column header literally says:
+   - If the header reads "31 December 2025", use "31 December 2025" — NOT
+     "current_year", NOT "2025", NOT anything else.
+   - If the header reads "Notes", use "Notes".
+   - If the header is BLANK (typical for the leftmost description column),
+     use "line_item" or "description".
+   - NEVER swap a year header with another year's data.
+
+4. The leftmost column is almost always a DESCRIPTION column with text
+   labels like "Cash and bank balances", "Trade receivables", "Property,
+   plant and equipment", etc. Capture it as a column with header
+   "line_item" (or whatever the PDF prints). Each row's value for this
+   column is the TEXT label — never a number.
+
+5. CRITICAL — DO NOT SHIFT VALUES BETWEEN COLUMNS. If row says:
+       Cash and bank balances    9    2,524,035    916,090
+   then the JSON row MUST be:
+       {{"line_item": "Cash and bank balances", "Notes": "9",
+        "<exact 2025 header>": 2524035, "<exact 2024 header>": 916090}}
+   NOT shifted by one column. NOT collapsed into fewer columns.
+
+6. If two year columns are present, you MUST return BOTH with numeric
+   values in the correct year's column. Numbers in parens "(1,234)" → -1234.
+
+7. Section-header rows (like "Assets", "Current assets", "Liabilities")
+   have ONLY the description field filled; all other columns are null.
+
+──────────────────────────────────────────────────────────────────────────
 ORIENTATION & LAYOUT:
-- Tables may be ROTATED 90° (landscape on a portrait page). Read naturally.
+- Tables may be ROTATED 90°. Read in natural order after mental rotation.
 - Multi-line column headers join into one space-separated string.
-- Empty cells / dashes → null. "0" stays 0. Numbers in parens are negative: "(1,234)" → -1234.
+- Empty cells / dashes → null. "0" stays 0.
 
-YEAR / PERIOD HANDLING:
-- If columns are year-dated (e.g. "31 December 2025", "31 December 2024"),
-  use the date itself as the column key — don't collapse two years into one.
+NUMERIC VALUES — MUST BE JSON NUMBERS, NOT STRINGS:
+- Every numeric cell must be emitted as a JSON number: 2524035458, not "2524035458".
+- Strip thousands separators: "1,234,567" → 1234567 (number, no commas, no quotes).
+- Parentheses → negative number: "(1,234)" → -1234 (number, no quotes).
+- Decimals preserved: "3.5" → 3.5 (number).
+- Only the description column (and Notes column, when it contains references
+  like "8-1") should be strings. All value columns are numbers or null.
 
-OUTPUT SHAPE (JSON only, no markdown):
+CORRECT vs WRONG (numeric formatting only — column names are illustrative):
+  ✅ CORRECT:   {{"line_item": "Revenues", "Notes": "36", "year_col_A": 2672986045, "year_col_B": 3263352508}}
+  ❌ WRONG:     {{"line_item": "Revenues", "Notes": "36", "year_col_A": "2,672,986,045", "year_col_B": "3,263,352,508"}}
+  ❌ WRONG:     {{"line_item": "Revenues", "Notes": "36", "year_col_A": "2672986045", "year_col_B": "3263352508"}}
+
+JSON FORMATTING:
+- All keys and string values use DOUBLE quotes (").
+- No trailing commas.
+- No comments.
+
+OUTPUT SHAPE (JSON only — no markdown, no preamble):
 {{
   "table_id": "{table_id}",
   "found": true|false,
   "page": <int>,
   "title_as_printed": "<exact heading from PDF>",
-  "columns": ["line_item", "Notes", "31 December 2025", "31 December 2024"],
-  "rows": [
-    {{"line_item": "Cash and bank balances", "Notes": "9", "31 December 2025": 2524035458, "31 December 2024": 916090738}},
-    ...
-  ],
+  "columns": [<list of column keys in left-to-right order, EXACTLY as the PDF prints headers; use "line_item" only when the PDF header is blank>],
+  "rows": [<one object per data row, with one key per column from the list above>],
   "currency": "SAR" | "USD" | "INR" | null,
   "notes": null | "<one short caveat>"
 }}
-
-The example above shows the REQUIRED shape — the first column is always the
-line-item description. NEVER return rows that only contain numbers without
-the corresponding line-item name.
 
 NEVER invent rows. If the table cannot be found, set found=false rows=[].
 Return ONLY the JSON object now.
@@ -122,6 +155,7 @@ Return ONLY the JSON object now.
 
 
 def _parse_json(raw: str) -> dict:
+    import re
     text = raw.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1] if "\n" in text else text[3:]
@@ -130,7 +164,12 @@ def _parse_json(raw: str) -> dict:
     last = text.rfind("}")
     if first >= 0 and last > first:
         text = text[first:last + 1]
-    return json.loads(text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # Tolerate common LLM JSON mistakes: trailing commas before } or ].
+        cleaned = re.sub(r",(\s*[}\]])", r"\1", text)
+        return json.loads(cleaned)
 
 
 def inventory_tables(pdf_bytes: bytes) -> dict:
