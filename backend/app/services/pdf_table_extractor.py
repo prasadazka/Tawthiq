@@ -137,6 +137,37 @@ JSON FORMATTING:
 - No trailing commas.
 - No comments.
 
+──────────────────────────────────────────────────────────────────────────
+MOVEMENT / ROLL-FORWARD TABLES — CONSOLIDATE PARALLEL SUB-SECTIONS:
+
+Many Saudi/Indian financial reports show a movement schedule (e.g.
+"Changes in defined benefit obligation", "PPE movement", "Lease liability
+movement") as TWO STACKED SUB-SECTIONS — one block of rows for the prior
+year followed by another block of rows for the current year, each block
+repeating the same line-item names (Opening balance, Interest cost,
+Current service cost, etc.).
+
+⚠ DO NOT emit those as 14 rows where each row has a value in only ONE
+   year column and a dash/null in the other. That is wrong.
+
+✅ CONSOLIDATE into ONE table where each unique line-item appears ONCE
+   with BOTH year columns populated side-by-side. The result is a normal
+   movement table.
+
+Matching rules when consolidating:
+- Treat year-specific phrasing as equivalent: "at 1 January 2024" and
+  "at 1 January 2025" both map to "at beginning of year".
+- "at 31 December 2024" and "at 31 December 2025" both map to "at end
+  of year".
+- Sign variants are still the same line: "Re-measurements gains in OCI"
+  and "Re-measurement loss in OCI" → one row "Re-measurements
+  (gain)/loss in OCI".
+- Items that only exist in one of the years (e.g. "Additions from
+  acquisition") keep the value for the year they appear and null for the
+  other year — but only ONE row, not two.
+
+Result for the example above: ~8 consolidated rows, not 14.
+
 OUTPUT SHAPE (JSON only — no markdown, no preamble):
 {{
   "table_id": "{table_id}",
