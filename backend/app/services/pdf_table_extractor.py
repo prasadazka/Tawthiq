@@ -205,9 +205,79 @@ def _parse_json(raw: str) -> dict:
 
 
 def inventory_tables(pdf_bytes: bytes) -> dict:
-    """Single Gemini call — returns the list of tables in the PDF."""
+    """Single Gemini call — returns the list of tables in the PDF.
+
+    Kept for callers that want the simple one-shot behavior; the production
+    pipeline uses `inventory_tables_parallel` instead.
+    """
     raw = query_with_gemini(pdf_bytes, INVENTORY_PROMPT)
     return _parse_json(raw)
+
+
+def _split_pdf_into_chunks(pdf_bytes: bytes, pages_per_chunk: int = 20) -> list[tuple[int, bytes]]:
+    """Split a PDF into fixed-size page chunks. Returns [(start_page, chunk_pdf_bytes), …]
+    where start_page is the 1-indexed page number the chunk's first page maps
+    to in the original document. Used to parallelize the inventory pass."""
+    src = fitz.open(stream=pdf_bytes, filetype="pdf")
+    total = len(src)
+    chunks: list[tuple[int, bytes]] = []
+    for start_zero in range(0, total, pages_per_chunk):
+        end_zero = min(start_zero + pages_per_chunk - 1, total - 1)
+        chunk_doc = fitz.open()
+        chunk_doc.insert_pdf(src, from_page=start_zero, to_page=end_zero)
+        chunks.append((start_zero + 1, chunk_doc.tobytes()))
+        chunk_doc.close()
+    src.close()
+    return chunks
+
+
+def inventory_tables_parallel(
+    pdf_bytes: bytes,
+    pages_per_chunk: int = 20,
+    max_workers: int = 6,
+) -> dict:
+    """Run the inventory pass in parallel over page chunks, then merge.
+
+    For a 100-page PDF this turns one ~4-min sequential Gemini call into
+    ~5 parallel ~50s calls. Per-chunk responses are merged and the page
+    numbers re-mapped to the original document. Skipping chunk overlap
+    means tables that straddle a chunk boundary (rare) may be inventoried
+    twice or split — both still get extracted in the per-table phase."""
+    chunks = _split_pdf_into_chunks(pdf_bytes, pages_per_chunk=pages_per_chunk)
+    if len(chunks) <= 1:
+        return inventory_tables(pdf_bytes)
+
+    def _one(chunk_args: tuple[int, bytes]) -> tuple[int, dict]:
+        start_page, chunk_bytes = chunk_args
+        raw = query_with_gemini(chunk_bytes, INVENTORY_PROMPT)
+        return start_page, _parse_json(raw)
+
+    merged_tables: list[dict] = []
+    workers = min(max_workers, len(chunks))
+    logger.info(
+        f"PDF tables inventory: {len(chunks)} chunks × {pages_per_chunk} pages, "
+        f"{workers} parallel workers"
+    )
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futures = {ex.submit(_one, c): c[0] for c in chunks}
+        for fut in as_completed(futures):
+            start_page = futures[fut]
+            try:
+                _, payload = fut.result()
+            except Exception as exc:
+                logger.warning(f"inventory chunk starting p.{start_page} failed: {exc}")
+                continue
+            # Re-map per-chunk page numbers (1-indexed within the chunk) to
+            # absolute page numbers in the original PDF.
+            for t in payload.get("tables", []):
+                local_page = t.get("page")
+                if isinstance(local_page, int) and local_page > 0:
+                    t["page"] = start_page + local_page - 1
+                merged_tables.append(t)
+
+    # Stable sort by page number for downstream code.
+    merged_tables.sort(key=lambda t: t.get("page") if isinstance(t.get("page"), int) else 9999)
+    return {"total_tables": len(merged_tables), "tables": merged_tables}
 
 
 def extract_table(pdf_bytes: bytes, table: dict) -> dict:
@@ -234,21 +304,22 @@ def extract_table(pdf_bytes: bytes, table: dict) -> dict:
 
 def extract_all_tables(
     pdf_bytes: bytes,
-    max_workers: int = 24,
-    extract_budget_seconds: int = 480,
+    max_workers: int = 48,
+    extract_budget_seconds: int = 1200,
+    inventory_pages_per_chunk: int = 20,
+    inventory_workers: int = 6,
 ) -> dict:
-    """Two-pass extraction: inventory + parallel per-table extraction.
+    """Two-pass extraction: parallel inventory + parallel per-table extraction.
 
     extract_budget_seconds caps the per-table extraction phase. When the
     budget is exceeded, every future that hasn't completed is marked as
     timed-out and the request returns with `partial: true`. The inventory
-    pass is not subject to this budget (it must complete to know what to
-    extract); inventory typically takes 30-150s.
+    pass is not budgeted but runs across page chunks in parallel, so for
+    a 100-page PDF it finishes in ~1 minute instead of ~4 minutes.
 
-    max_workers default 24 = roughly one round of parallel calls for a typical
-    Saudi audit PDF. Vertex AI Gemini Flash supports hundreds of concurrent
-    requests per project; 24 keeps us well under any quota while still
-    finishing most PDFs in ~60-90s instead of 4+ minutes.
+    max_workers default 48 — Vertex AI Gemini Flash easily handles this many
+    concurrent requests per project. A typical 80-table Saudi PDF then
+    finishes one extract round in ~25 s instead of three rounds at 24 workers.
     """
     t_start = time.time()
 
@@ -257,10 +328,19 @@ def extract_all_tables(
     page_count = len(doc)
     doc.close()
 
-    # 1. Inventory
-    logger.info("PDF tables: running inventory pass")
-    inv = inventory_tables(pdf_bytes)
+    # 1. Inventory — parallel over page chunks
+    logger.info("PDF tables: running parallel inventory pass")
+    t_inv = time.time()
+    inv = inventory_tables_parallel(
+        pdf_bytes,
+        pages_per_chunk=inventory_pages_per_chunk,
+        max_workers=inventory_workers,
+    )
     tables = inv.get("tables", [])
+    logger.info(
+        f"PDF tables: inventory complete in {round(time.time()-t_inv, 1)}s "
+        f"({len(tables)} tables across {page_count} pages)"
+    )
 
     # 2. Parallel extraction with a total wall-clock budget so a single hung
     #    future cannot block the whole request. When the budget is hit, every

@@ -45,7 +45,6 @@ function App() {
   const [xbrlStartedAt, setXbrlStartedAt] = useState<number | null>(null);
 
   const tablesAbortRef = useRef<AbortController | null>(null);
-  const tablesTimeoutRef = useRef<number | null>(null);
 
   const handleCancelTables = () => {
     if (tablesAbortRef.current) {
@@ -60,33 +59,22 @@ function App() {
     setTablesError(null);
     setTablesStartedAt(Date.now());
 
-    // Hard cap at 10 minutes — abort if the backend hasn't responded by then.
+    // No auto-timeout — Cloud Run already caps the request at 30 minutes and
+    // the backend returns partial results when its own internal budget fires.
+    // The user can manually cancel via the button in ProcessingView.
     const controller = new AbortController();
     tablesAbortRef.current = controller;
-    tablesTimeoutRef.current = window.setTimeout(
-      () => controller.abort("auto_timeout"),
-      10 * 60 * 1000,
-    );
 
     try {
       const data = await extractPdfTables(pdfFile, controller.signal);
       setTablesData(data);
     } catch (err) {
       if (controller.signal.aborted) {
-        const reason = controller.signal.reason;
-        setTablesError(
-          reason === "user_cancel"
-            ? "Extraction cancelled."
-            : "Timed out after 10 minutes — backend may be overloaded. Try again.",
-        );
+        setTablesError("Extraction cancelled.");
       } else {
         setTablesError(err instanceof Error ? err.message : "Table extraction failed");
       }
     } finally {
-      if (tablesTimeoutRef.current != null) {
-        window.clearTimeout(tablesTimeoutRef.current);
-        tablesTimeoutRef.current = null;
-      }
       tablesAbortRef.current = null;
       setTablesLoading(false);
     }
