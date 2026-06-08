@@ -71,6 +71,13 @@ const TIPS_PDF_TABLES = [
 interface Props {
   mode: "extracting" | "generating" | "validating" | "pdf_tables";
   fileSummary?: string;
+  /**
+   * Wall-clock timestamp (Date.now()) when the underlying request started.
+   * When provided the elapsed timer continues from that point even if the
+   * component remounts (e.g. user switches tabs and comes back). Without it
+   * the timer starts at zero on every mount.
+   */
+  startedAt?: number;
 }
 
 const MODE_CONFIG: Record<Props["mode"], { steps: Step[]; tips: string[]; note: string }> = {
@@ -106,13 +113,16 @@ function formatElapsed(seconds: number) {
   return `${pad(m)}:${pad(s)}`;
 }
 
-export default function ProcessingView({ mode, fileSummary }: Props) {
+export default function ProcessingView({ mode, fileSummary, startedAt }: Props) {
   const { steps, tips, note } = MODE_CONFIG[mode];
 
-  const [elapsed, setElapsed] = useState(0);
+  const initialStart = startedAt ?? Date.now();
+  const [elapsed, setElapsed] = useState(
+    Math.max(0, Math.floor((Date.now() - initialStart) / 1000)),
+  );
   const [activeIndex, setActiveIndex] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
-  const startRef = useRef(Date.now());
+  const startRef = useRef(initialStart);
   const totalEta = useMemo(() => steps.reduce((a, s) => a + s.etaSeconds, 0), [steps]);
 
   /* Tick elapsed every second */

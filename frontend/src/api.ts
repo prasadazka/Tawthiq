@@ -205,6 +205,58 @@ export interface PdfTablesResponse {
   tables: PdfTable[];
 }
 
+export interface SaudiXBRLMetadata {
+  entity_id?: string;
+  period_start_cy?: string;
+  period_end_cy?: string;
+  period_start_py?: string;
+  period_end_py?: string;
+  currency?: string;
+  decimals_default?: string;
+  schema_ref?: string;
+}
+
+export interface SaudiXBRLGenerateResult {
+  blob: Blob;
+  filename: string;
+  total: number;
+  found: number;
+  coveragePct: number;
+  elapsedSeconds: number;
+}
+
+export async function generateSaudiXBRL(
+  rulesJson: ValidationResponse,
+  tablesJson: PdfTablesResponse,
+  metadata: SaudiXBRLMetadata,
+  filename = "saudi_xbrl.xml",
+): Promise<SaudiXBRLGenerateResult> {
+  const res = await fetch(`${API_BASE}/api/xbrl/saudi/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      rules_json: rulesJson,
+      tables_json: tablesJson,
+      metadata,
+      use_ai_fallback: true,
+      filename,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "XBRL generation failed" }));
+    throw new Error(err.detail || `Server error: ${res.status}`);
+  }
+  const blob = await res.blob();
+  return {
+    blob,
+    filename,
+    total: parseInt(res.headers.get("x-tawthiq-concepts-total") || "0", 10),
+    found: parseInt(res.headers.get("x-tawthiq-concepts-found") || "0", 10),
+    coveragePct: parseFloat(res.headers.get("x-tawthiq-coverage-pct") || "0"),
+    elapsedSeconds: parseFloat(res.headers.get("x-tawthiq-elapsed-seconds") || "0"),
+  };
+}
+
 export async function extractPdfTables(file: File): Promise<PdfTablesResponse> {
   const formData = new FormData();
   formData.append("file", file);

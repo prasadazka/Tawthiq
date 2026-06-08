@@ -4,14 +4,21 @@ import ValidationViewer from "./components/ValidationViewer";
 import IndianXBRL from "./components/IndianXBRL";
 import PdfTables from "./components/PdfTables";
 import ProcessingView from "./components/ProcessingView";
-import { validateDocument, extractPdfTables, type ValidationResponse, type PdfTablesResponse } from "./api";
+import {
+  validateDocument,
+  extractPdfTables,
+  generateSaudiXBRL,
+  type ValidationResponse,
+  type PdfTablesResponse,
+  type SaudiXBRLGenerateResult,
+} from "./api";
 import "./App.css";
 
 type AppState = "idle" | "validating" | "done" | "error";
 type TabKey = "saudi" | "indian" | "tables";
 type IndianStage = "idle" | "extracting" | "validated" | "generating" | "blocked" | "editing" | "error";
 type TablesStage = "idle" | "extracting" | "done" | "error";
-type ResultsView = "rules" | "fields" | "tables";
+type ResultsView = "rules" | "fields" | "tables" | "xbrl";
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("saudi");
@@ -29,12 +36,20 @@ function App() {
   const [tablesData, setTablesData] = useState<PdfTablesResponse | null>(null);
   const [tablesLoading, setTablesLoading] = useState(false);
   const [tablesError, setTablesError] = useState<string | null>(null);
+  const [tablesStartedAt, setTablesStartedAt] = useState<number | null>(null);
+
+  // XBRL generation state
+  const [xbrlGenerating, setXbrlGenerating] = useState(false);
+  const [xbrlResult, setXbrlResult] = useState<SaudiXBRLGenerateResult | null>(null);
+  const [xbrlError, setXbrlError] = useState<string | null>(null);
+  const [xbrlStartedAt, setXbrlStartedAt] = useState<number | null>(null);
 
   const handleOpenTablesTab = async () => {
     setResultsView("tables");
     if (!pdfFile || tablesData || tablesLoading) return;
     setTablesLoading(true);
     setTablesError(null);
+    setTablesStartedAt(Date.now());
     try {
       const data = await extractPdfTables(pdfFile);
       setTablesData(data);
@@ -42,6 +57,44 @@ function App() {
       setTablesError(err instanceof Error ? err.message : "Table extraction failed");
     } finally {
       setTablesLoading(false);
+    }
+  };
+
+  const handleOpenXbrlTab = () => setResultsView("xbrl");
+
+  const xbrlReady = !!result && !!tablesData && !tablesLoading;
+
+  const handleGenerateXbrl = async () => {
+    if (!result || !tablesData || xbrlGenerating) return;
+    setXbrlGenerating(true);
+    setXbrlError(null);
+    setXbrlStartedAt(Date.now());
+    try {
+      // Default metadata — derived from the report's reporting period when known.
+      // Caller may want a small form for this later; for now we ship defaults.
+      const now = new Date();
+      const cyYear = now.getFullYear() - 1;
+      const data = await generateSaudiXBRL(result, tablesData, {
+        period_start_cy: `${cyYear}-01-01`,
+        period_end_cy: `${cyYear}-12-31`,
+        period_start_py: `${cyYear - 1}-01-01`,
+        period_end_py: `${cyYear - 1}-12-31`,
+        currency: "SAR",
+      });
+      setXbrlResult(data);
+      // Trigger download
+      const url = URL.createObjectURL(data.blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = data.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setXbrlError(err instanceof Error ? err.message : "XBRL generation failed");
+    } finally {
+      setXbrlGenerating(false);
     }
   };
 
@@ -81,6 +134,11 @@ function App() {
     setTablesData(null);
     setTablesLoading(false);
     setTablesError(null);
+    setTablesStartedAt(null);
+    setXbrlGenerating(false);
+    setXbrlResult(null);
+    setXbrlError(null);
+    setXbrlStartedAt(null);
   };
 
   const handleTabSwitch = (tab: TabKey) => {
@@ -157,6 +215,24 @@ function App() {
                   <span className="nav-tab-count">{tablesData.table_count_extracted}</span>
                 )}
               </button>
+              <button
+                type="button"
+                className={`nav-tab ${resultsView === "xbrl" ? "nav-tab-active" : ""} ${!xbrlReady ? "nav-tab-disabled" : ""}`}
+                onClick={handleOpenXbrlTab}
+                title={xbrlReady ? "Generate XBRL" : "Unlocks after Rules + PDF Tables both complete"}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="4 7 4 4 20 4 20 7" />
+                  <line x1="9" y1="20" x2="15" y2="20" />
+                  <line x1="12" y1="4" x2="12" y2="20" />
+                </svg>
+                XBRL
+                {!xbrlReady && (
+                  <span className="nav-tab-count nav-tab-count-locked">
+                    {tablesLoading ? "loading…" : "locked"}
+                  </span>
+                )}
+              </button>
             </>
           ) : (
             <>
@@ -219,6 +295,14 @@ function App() {
               tablesData={tablesData}
               tablesLoading={tablesLoading}
               tablesError={tablesError}
+              tablesStartedAt={tablesStartedAt}
+              xbrlReady={xbrlReady}
+              xbrlGenerating={xbrlGenerating}
+              xbrlResult={xbrlResult}
+              xbrlError={xbrlError}
+              xbrlStartedAt={xbrlStartedAt}
+              onGenerateXbrl={handleGenerateXbrl}
+              onOpenTablesTab={handleOpenTablesTab}
             />
           )}
 

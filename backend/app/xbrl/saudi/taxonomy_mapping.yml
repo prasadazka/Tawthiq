@@ -1,0 +1,174 @@
+# Tawthiq IFRS Core Mapper v1 — Saudi Arabia
+#
+# Common IFRS concepts used by Saudi listed company annual reports, plus a
+# SOCPA extension layer for Saudi-specific items (Zakat, Unified Number, etc.).
+#
+# DO NOT freely edit business_term or xbrl_tag once a concept is in production —
+# the XBRL generator and the AI mapping layer key off these strings. To add a
+# new alias for an existing concept, add it under `synonyms`. To rename a
+# concept, add the old name as a synonym so existing mappings keep working.
+#
+# Schema (per concept):
+#   business_term : str  — human label shown in the UI and in mapping prompts
+#   xbrl_tag      : str  — fully-qualified XBRL element (or "Context", "Unit",
+#                          "Local Extension" for non-taxonomy items)
+#   synonyms      : list[str] (optional) — alternate labels companies use
+
+metadata:
+  name: "Tawthiq IFRS Core Mapper v1"
+  taxonomy: "ifrs-full"
+  country: "saudi_arabia"
+  version: "1.0"
+  description: >-
+    Common IFRS concepts for Saudi listed company annual reports plus SOCPA
+    (Saudi Organization for Chartered and Professional Accountants) extensions.
+
+namespaces:
+  ifrs-full: "http://xbrl.ifrs.org/taxonomy/2024-03-27/ifrs-full"
+  socpa: "https://taxonomy.socpa.org.sa/socpa-extension/2024"
+
+sections:
+  - id: balance_sheet
+    title: "Statement of Financial Position (Balance Sheet)"
+    concepts:
+      - business_term: "Total Assets"
+        xbrl_tag: "ifrs-full:Assets"
+      - business_term: "Current Assets"
+        xbrl_tag: "ifrs-full:CurrentAssets"
+      - business_term: "Non-current Assets"
+        xbrl_tag: "ifrs-full:NoncurrentAssets"
+      - business_term: "Cash & Cash Equivalents"
+        xbrl_tag: "ifrs-full:CashAndCashEquivalents"
+      - business_term: "Trade Receivables"
+        xbrl_tag: "ifrs-full:TradeAndOtherCurrentReceivables"
+      - business_term: "Inventories"
+        xbrl_tag: "ifrs-full:Inventories"
+      - business_term: "Property Plant Equipment"
+        xbrl_tag: "ifrs-full:PropertyPlantAndEquipment"
+      - business_term: "Intangible Assets"
+        xbrl_tag: "ifrs-full:IntangibleAssetsOtherThanGoodwill"
+      - business_term: "Right-of-use Assets"
+        xbrl_tag: "ifrs-full:RightOfUseAssets"
+      - business_term: "Investment Property"
+        xbrl_tag: "ifrs-full:InvestmentProperty"
+      - business_term: "Goodwill"
+        xbrl_tag: "ifrs-full:Goodwill"
+      - business_term: "Total Equity"
+        xbrl_tag: "ifrs-full:Equity"
+      - business_term: "Share Capital"
+        xbrl_tag: "ifrs-full:IssuedCapital"
+      - business_term: "Retained Earnings"
+        xbrl_tag: "ifrs-full:RetainedEarnings"
+      - business_term: "Total Liabilities"
+        xbrl_tag: "ifrs-full:Liabilities"
+      - business_term: "Current Liabilities"
+        xbrl_tag: "ifrs-full:CurrentLiabilities"
+      - business_term: "Non-current Liabilities"
+        xbrl_tag: "ifrs-full:NoncurrentLiabilities"
+      - business_term: "Trade Payables"
+        xbrl_tag: "ifrs-full:TradeAndOtherCurrentPayables"
+      - business_term: "Borrowings"
+        xbrl_tag: "ifrs-full:Borrowings"
+      - business_term: "Lease Liabilities"
+        xbrl_tag: "ifrs-full:LeaseLiabilities"
+
+  - id: income_statement
+    title: "Income Statement (P&L)"
+    concepts:
+      - business_term: "Revenue"
+        xbrl_tag: "ifrs-full:Revenue"
+        synonyms:
+          - "Sales Revenue"
+          - "Operating Revenue"
+          - "Revenue from Utility Operations"
+          - "Turnover"
+          - "Utility Revenue"
+      - business_term: "Cost of Sales"
+        xbrl_tag: "ifrs-full:CostOfSales"
+      - business_term: "Gross Profit"
+        xbrl_tag: "ifrs-full:GrossProfit"
+      - business_term: "Selling Expenses"
+        xbrl_tag: "ifrs-full:SellingAndMarketingExpense"
+      - business_term: "Administrative Expenses"
+        xbrl_tag: "ifrs-full:AdministrativeExpense"
+      - business_term: "Operating Profit"
+        xbrl_tag: "ifrs-full:ProfitLossFromOperatingActivities"
+      - business_term: "Finance Income"
+        xbrl_tag: "ifrs-full:FinanceIncome"
+      - business_term: "Finance Costs"
+        xbrl_tag: "ifrs-full:FinanceCosts"
+      - business_term: "Other Income"
+        xbrl_tag: "ifrs-full:OtherIncome"
+      - business_term: "Other Expenses"
+        xbrl_tag: "ifrs-full:OtherExpenses"
+      - business_term: "Profit Before Tax"
+        xbrl_tag: "ifrs-full:ProfitLossBeforeTax"
+      - business_term: "Income Tax Expense"
+        xbrl_tag: "ifrs-full:IncomeTaxExpenseContinuingOperations"
+      - business_term: "Profit for the Year"
+        xbrl_tag: "ifrs-full:ProfitLoss"
+      - business_term: "Basic EPS"
+        xbrl_tag: "ifrs-full:BasicEarningsLossPerShare"
+      - business_term: "Diluted EPS"
+        xbrl_tag: "ifrs-full:DilutedEarningsLossPerShare"
+
+  - id: cash_flow
+    title: "Cash Flow Statement"
+    concepts:
+      - business_term: "Net Cash from Operating Activities"
+        xbrl_tag: "ifrs-full:NetCashFlowsFromUsedInOperatingActivities"
+      - business_term: "Net Cash from Investing Activities"
+        xbrl_tag: "ifrs-full:NetCashFlowsFromUsedInInvestingActivities"
+      - business_term: "Net Cash from Financing Activities"
+        xbrl_tag: "ifrs-full:NetCashFlowsFromUsedInFinancingActivities"
+      - business_term: "Cash at Beginning of Period"
+        xbrl_tag: "ifrs-full:CashAndCashEquivalentsAtBeginningOfPeriod"
+      - business_term: "Cash at End of Period"
+        xbrl_tag: "ifrs-full:CashAndCashEquivalents"
+
+  - id: changes_in_equity
+    title: "Statement of Changes in Equity"
+    concepts:
+      - business_term: "Opening Equity"
+        xbrl_tag: "ifrs-full:EquityAtBeginningOfPeriod"
+      - business_term: "Closing Equity"
+        xbrl_tag: "ifrs-full:Equity"
+      - business_term: "Dividends Paid"
+        xbrl_tag: "ifrs-full:DividendsPaid"
+      - business_term: "Share Capital Increase"
+        xbrl_tag: "ifrs-full:IncreaseDecreaseThroughIssueOfShares"
+      - business_term: "Retained Earnings Movement"
+        xbrl_tag: "ifrs-full:RetainedEarnings"
+
+  - id: company_metadata
+    title: "Company Metadata"
+    concepts:
+      - business_term: "Company Name"
+        xbrl_tag: "ifrs-full:NameOfReportingEntityOrOtherMeansOfIdentification"
+      - business_term: "Reporting Period Start"
+        xbrl_tag: "Context"
+      - business_term: "Reporting Period End"
+        xbrl_tag: "Context"
+      - business_term: "Currency"
+        xbrl_tag: "Unit"
+      - business_term: "Consolidated Financial Statements"
+        xbrl_tag: "ifrs-full:DescriptionOfNatureOfFinancialStatements"
+      - business_term: "Auditor Name"
+        xbrl_tag: "Local Extension"
+      - business_term: "Audit Opinion"
+        xbrl_tag: "Local Extension"
+
+  - id: saudi_extensions
+    title: "Saudi Extensions (SOCPA Layer)"
+    namespace: socpa
+    concepts:
+      - business_term: "Zakat Expense"
+        xbrl_tag: "socpa:ZakatExpense"
+      - business_term: "Unified Number"
+        xbrl_tag: "socpa:UnifiedNumber"
+      - business_term: "CR Number"
+        xbrl_tag: "socpa:CommercialRegistrationNumber"
+      - business_term: "Auditor License Number"
+        xbrl_tag: "socpa:AuditorLicenseNumber"
+      - business_term: "SAMA License Number"
+        xbrl_tag: "socpa:SamaLicenseNumber"
