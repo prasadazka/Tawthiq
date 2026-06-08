@@ -161,8 +161,14 @@ def extract_table(pdf_bytes: bytes, table: dict) -> dict:
         }
 
 
-def extract_all_tables(pdf_bytes: bytes, max_workers: int = 6) -> dict:
-    """Two-pass extraction: inventory + parallel per-table extraction."""
+def extract_all_tables(pdf_bytes: bytes, max_workers: int = 24) -> dict:
+    """Two-pass extraction: inventory + parallel per-table extraction.
+
+    max_workers default 24 = roughly one round of parallel calls for a typical
+    Saudi audit PDF (20-40 tables). Vertex AI Gemini Flash supports hundreds
+    of concurrent requests per project; 24 keeps us well under any quota
+    while still finishing most PDFs in ~60-90s instead of 4+ minutes.
+    """
     t_start = time.time()
 
     # Page count via PyMuPDF (cheap)
@@ -175,11 +181,13 @@ def extract_all_tables(pdf_bytes: bytes, max_workers: int = 6) -> dict:
     inv = inventory_tables(pdf_bytes)
     tables = inv.get("tables", [])
 
-    # 2. Parallel extraction
+    # 2. Parallel extraction — cap workers at the number of tables (no point
+    # over-spawning for small PDFs).
     extracted: list[dict] = []
     if tables:
-        logger.info(f"PDF tables: extracting {len(tables)} tables in parallel")
-        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        workers = min(max_workers, max(1, len(tables)))
+        logger.info(f"PDF tables: extracting {len(tables)} tables in parallel ({workers} workers)")
+        with ThreadPoolExecutor(max_workers=workers) as ex:
             futures = {ex.submit(extract_table, pdf_bytes, t): t for t in tables}
             for fut in as_completed(futures):
                 extracted.append(fut.result())
