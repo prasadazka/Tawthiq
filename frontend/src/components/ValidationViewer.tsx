@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import RulesPanel from "./RulesPanel";
 import FieldsTable from "./FieldsTable";
+import PdfTablesList from "./PdfTablesList";
 import PdfViewer from "./PdfViewer";
 import type { ValidationResponse, RuleLocation } from "../api";
 
@@ -9,7 +10,7 @@ interface Props {
   pdfFile: File;
   onReset: () => void;
   duration?: number;
-  view?: "rules" | "fields";
+  view?: "rules" | "fields" | "tables";
   onPickField?: () => void;
 }
 
@@ -52,6 +53,20 @@ export default function ValidationViewer({ data, pdfFile, onReset, duration, vie
     return (
       <div className="viewer viewer-fields">
         <FieldsTable results={data.results} onPageClick={handlePageClick} />
+      </div>
+    );
+  }
+
+  if (view === "tables") {
+    return (
+      <div className="viewer viewer-fields">
+        <PdfTablesList
+          tables={data.tables?.items || []}
+          totalRows={data.tables?.total_rows}
+          filename={data.filename}
+          pageCount={data.extraction.page_count}
+          showHeader
+        />
       </div>
     );
   }

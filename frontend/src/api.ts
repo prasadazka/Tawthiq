@@ -39,6 +39,12 @@ export interface ValidationResponse {
     not_applicable: number;
   };
   results: RuleResult[];
+  tables?: {
+    table_count_inventory: number;
+    table_count_extracted: number;
+    total_rows: number;
+    items: PdfTable[];
+  };
 }
 
 export async function validateDocument(

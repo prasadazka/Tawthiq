@@ -11,7 +11,7 @@ type AppState = "idle" | "validating" | "done" | "error";
 type TabKey = "saudi" | "indian" | "tables";
 type IndianStage = "idle" | "extracting" | "validated" | "generating" | "blocked" | "editing" | "error";
 type TablesStage = "idle" | "extracting" | "done" | "error";
-type ResultsView = "rules" | "fields";
+type ResultsView = "rules" | "fields" | "tables";
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("saudi");
@@ -119,6 +119,23 @@ function App() {
                 Extracted Fields
                 {result && <span className="nav-tab-count">{result.results.length}</span>}
               </button>
+              {result?.tables && result.tables.items.length > 0 && (
+                <button
+                  type="button"
+                  className={`nav-tab ${resultsView === "tables" ? "nav-tab-active" : ""}`}
+                  onClick={() => setResultsView("tables")}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <line x1="3" y1="9" x2="21" y2="9" />
+                    <line x1="3" y1="15" x2="21" y2="15" />
+                    <line x1="9" y1="3" x2="9" y2="21" />
+                    <line x1="15" y1="3" x2="15" y2="21" />
+                  </svg>
+                  PDF Tables
+                  <span className="nav-tab-count">{result.tables.table_count_extracted}</span>
+                </button>
+              )}
             </>
           ) : (
             <>
