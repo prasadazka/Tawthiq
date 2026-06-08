@@ -4,7 +4,7 @@ import ValidationViewer from "./components/ValidationViewer";
 import IndianXBRL from "./components/IndianXBRL";
 import PdfTables from "./components/PdfTables";
 import ProcessingView from "./components/ProcessingView";
-import { validateDocument, type ValidationResponse } from "./api";
+import { validateDocument, extractPdfTables, type ValidationResponse, type PdfTablesResponse } from "./api";
 import "./App.css";
 
 type AppState = "idle" | "validating" | "done" | "error";
@@ -26,6 +26,24 @@ function App() {
   const [duration, setDuration] = useState<number | undefined>(undefined);
   const [sector, setSector] = useState<string>("all");
   const [resultsView, setResultsView] = useState<ResultsView>("rules");
+  const [tablesData, setTablesData] = useState<PdfTablesResponse | null>(null);
+  const [tablesLoading, setTablesLoading] = useState(false);
+  const [tablesError, setTablesError] = useState<string | null>(null);
+
+  const handleOpenTablesTab = async () => {
+    setResultsView("tables");
+    if (!pdfFile || tablesData || tablesLoading) return;
+    setTablesLoading(true);
+    setTablesError(null);
+    try {
+      const data = await extractPdfTables(pdfFile);
+      setTablesData(data);
+    } catch (err) {
+      setTablesError(err instanceof Error ? err.message : "Table extraction failed");
+    } finally {
+      setTablesLoading(false);
+    }
+  };
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -60,6 +78,9 @@ function App() {
     setPdfFile(null);
     setDuration(undefined);
     setResultsView("rules");
+    setTablesData(null);
+    setTablesLoading(false);
+    setTablesError(null);
   };
 
   const handleTabSwitch = (tab: TabKey) => {
@@ -119,23 +140,23 @@ function App() {
                 Extracted Fields
                 {result && <span className="nav-tab-count">{result.results.length}</span>}
               </button>
-              {result?.tables && result.tables.items.length > 0 && (
-                <button
-                  type="button"
-                  className={`nav-tab ${resultsView === "tables" ? "nav-tab-active" : ""}`}
-                  onClick={() => setResultsView("tables")}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                    <line x1="3" y1="9" x2="21" y2="9" />
-                    <line x1="3" y1="15" x2="21" y2="15" />
-                    <line x1="9" y1="3" x2="9" y2="21" />
-                    <line x1="15" y1="3" x2="15" y2="21" />
-                  </svg>
-                  PDF Tables
-                  <span className="nav-tab-count">{result.tables.table_count_extracted}</span>
-                </button>
-              )}
+              <button
+                type="button"
+                className={`nav-tab ${resultsView === "tables" ? "nav-tab-active" : ""}`}
+                onClick={handleOpenTablesTab}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="3" y1="9" x2="21" y2="9" />
+                  <line x1="3" y1="15" x2="21" y2="15" />
+                  <line x1="9" y1="3" x2="9" y2="21" />
+                  <line x1="15" y1="3" x2="15" y2="21" />
+                </svg>
+                PDF Tables
+                {tablesData && (
+                  <span className="nav-tab-count">{tablesData.table_count_extracted}</span>
+                )}
+              </button>
             </>
           ) : (
             <>
@@ -195,6 +216,9 @@ function App() {
               duration={duration}
               view={resultsView}
               onPickField={() => setResultsView("rules")}
+              tablesData={tablesData}
+              tablesLoading={tablesLoading}
+              tablesError={tablesError}
             />
           )}
 

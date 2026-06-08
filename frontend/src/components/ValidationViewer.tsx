@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo } from "react";
 import RulesPanel from "./RulesPanel";
 import FieldsTable from "./FieldsTable";
 import PdfTablesList from "./PdfTablesList";
+import ProcessingView from "./ProcessingView";
 import PdfViewer from "./PdfViewer";
-import type { ValidationResponse, RuleLocation } from "../api";
+import type { ValidationResponse, RuleLocation, PdfTablesResponse } from "../api";
 
 interface Props {
   data: ValidationResponse;
@@ -12,9 +13,15 @@ interface Props {
   duration?: number;
   view?: "rules" | "fields" | "tables";
   onPickField?: () => void;
+  tablesData?: PdfTablesResponse | null;
+  tablesLoading?: boolean;
+  tablesError?: string | null;
 }
 
-export default function ValidationViewer({ data, pdfFile, onReset, duration, view = "rules", onPickField }: Props) {
+export default function ValidationViewer({
+  data, pdfFile, onReset, duration, view = "rules", onPickField,
+  tablesData, tablesLoading, tablesError,
+}: Props) {
   const [selectedRule, setSelectedRule] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [numPages, setNumPages] = useState(0);
@@ -58,17 +65,38 @@ export default function ValidationViewer({ data, pdfFile, onReset, duration, vie
   }
 
   if (view === "tables") {
-    return (
-      <div className="viewer viewer-fields">
-        <PdfTablesList
-          tables={data.tables?.items || []}
-          totalRows={data.tables?.total_rows}
-          filename={data.filename}
-          pageCount={data.extraction.page_count}
-          showHeader
-        />
-      </div>
-    );
+    if (tablesLoading) {
+      return (
+        <div className="viewer viewer-fields">
+          <ProcessingView mode="pdf_tables" fileSummary={data.filename} />
+        </div>
+      );
+    }
+    if (tablesError) {
+      return (
+        <div className="viewer viewer-fields">
+          <div className="error-card">
+            <h3>Table Extraction Failed</h3>
+            <p className="error-msg">{tablesError}</p>
+          </div>
+        </div>
+      );
+    }
+    if (tablesData) {
+      return (
+        <div className="viewer viewer-fields">
+          <PdfTablesList
+            tables={tablesData.tables}
+            totalRows={tablesData.total_rows}
+            filename={tablesData.filename}
+            pageCount={tablesData.page_count}
+            elapsedSeconds={tablesData.total_seconds}
+            showHeader
+          />
+        </div>
+      );
+    }
+    return null;
   }
 
   return (

@@ -27,8 +27,8 @@ const GENERATE_STEPS: Step[] = [
 const VALIDATE_STEPS: Step[] = [
   { id: "upload", label: "File received", detail: "Verifying PDF signature and size", etaSeconds: 1 },
   { id: "parse", label: "Reading the PDF", detail: "Indexing pages with PyMuPDF", etaSeconds: 3 },
-  { id: "ai", label: "AI rule evaluation + table extraction", detail: "23 compliance checks and per-table extraction running in parallel on Gemini", etaSeconds: 55 },
-  { id: "summary", label: "Compiling results", detail: "Aggregating pass/fail with evidence + structured table rows", etaSeconds: 2 },
+  { id: "ai", label: "AI rule evaluation", detail: "Gemini reads each section and answers 23 compliance checks", etaSeconds: 55 },
+  { id: "summary", label: "Compiling validation report", detail: "Aggregating pass/fail with evidence locations", etaSeconds: 2 },
 ];
 
 const PDF_TABLES_STEPS: Step[] = [
