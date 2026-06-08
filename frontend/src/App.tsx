@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import UploadZone from "./components/UploadZone";
 import ValidationViewer from "./components/ValidationViewer";
 import IndianXBRL from "./components/IndianXBRL";
@@ -44,18 +44,50 @@ function App() {
   const [xbrlError, setXbrlError] = useState<string | null>(null);
   const [xbrlStartedAt, setXbrlStartedAt] = useState<number | null>(null);
 
+  const tablesAbortRef = useRef<AbortController | null>(null);
+  const tablesTimeoutRef = useRef<number | null>(null);
+
+  const handleCancelTables = () => {
+    if (tablesAbortRef.current) {
+      tablesAbortRef.current.abort("user_cancel");
+    }
+  };
+
   const handleOpenTablesTab = async () => {
     setResultsView("tables");
     if (!pdfFile || tablesData || tablesLoading) return;
     setTablesLoading(true);
     setTablesError(null);
     setTablesStartedAt(Date.now());
+
+    // Hard cap at 10 minutes — abort if the backend hasn't responded by then.
+    const controller = new AbortController();
+    tablesAbortRef.current = controller;
+    tablesTimeoutRef.current = window.setTimeout(
+      () => controller.abort("auto_timeout"),
+      10 * 60 * 1000,
+    );
+
     try {
-      const data = await extractPdfTables(pdfFile);
+      const data = await extractPdfTables(pdfFile, controller.signal);
       setTablesData(data);
     } catch (err) {
-      setTablesError(err instanceof Error ? err.message : "Table extraction failed");
+      if (controller.signal.aborted) {
+        const reason = controller.signal.reason;
+        setTablesError(
+          reason === "user_cancel"
+            ? "Extraction cancelled."
+            : "Timed out after 10 minutes — backend may be overloaded. Try again.",
+        );
+      } else {
+        setTablesError(err instanceof Error ? err.message : "Table extraction failed");
+      }
     } finally {
+      if (tablesTimeoutRef.current != null) {
+        window.clearTimeout(tablesTimeoutRef.current);
+        tablesTimeoutRef.current = null;
+      }
+      tablesAbortRef.current = null;
       setTablesLoading(false);
     }
   };
@@ -287,6 +319,7 @@ function App() {
               tablesLoading={tablesLoading}
               tablesError={tablesError}
               tablesStartedAt={tablesStartedAt}
+              onCancelTables={handleCancelTables}
               xbrlReady={xbrlReady}
               xbrlGenerating={xbrlGenerating}
               xbrlResult={xbrlResult}

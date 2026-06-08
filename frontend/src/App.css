@@ -959,6 +959,25 @@
   100% { transform: translateX(350%); }
 }
 
+/* — cancel-after-N-seconds block — */
+.processing-cancel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--bg-subtle);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.processing-cancel p {
+  margin: 0;
+  text-align: center;
+}
+
 /* — tip card — */
 .processing-tip {
   display: flex;
@@ -1701,6 +1720,43 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: var(--shadow);
+}
+
+.pdf-tables-partial {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--bg);
+  border: 1px solid var(--text-h);
+  border-left: 4px solid var(--text-h);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.pdf-tables-partial-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--text-h);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.pdf-tables-partial-body {
+  font-size: 13px;
+  color: var(--text-h);
+  line-height: 1.5;
+}
+
+.pdf-tables-partial-body strong {
+  font-weight: 700;
+  color: var(--text-h);
 }
 
 .pdf-tables-toolbar .fields-search {

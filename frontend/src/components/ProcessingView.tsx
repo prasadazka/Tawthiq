@@ -78,6 +78,13 @@ interface Props {
    * the timer starts at zero on every mount.
    */
   startedAt?: number;
+  /**
+   * If provided, after `cancelAfterSeconds` (default 180) a "Cancel and retry"
+   * button is shown that calls this handler. Useful when the underlying
+   * backend call could legitimately hang for many minutes.
+   */
+  onCancel?: () => void;
+  cancelAfterSeconds?: number;
 }
 
 const MODE_CONFIG: Record<Props["mode"], { steps: Step[]; tips: string[]; note: string }> = {
@@ -113,7 +120,9 @@ function formatElapsed(seconds: number) {
   return `${pad(m)}:${pad(s)}`;
 }
 
-export default function ProcessingView({ mode, fileSummary, startedAt }: Props) {
+export default function ProcessingView({
+  mode, fileSummary, startedAt, onCancel, cancelAfterSeconds = 180,
+}: Props) {
   const { steps, tips, note } = MODE_CONFIG[mode];
 
   const initialStart = startedAt ?? Date.now();
@@ -244,6 +253,15 @@ export default function ProcessingView({ mode, fileSummary, startedAt }: Props) 
         </div>
         <span>{tips[tipIndex]}</span>
       </div>
+
+      {onCancel && elapsed >= cancelAfterSeconds && (
+        <div className="processing-cancel">
+          <p>This is taking longer than usual. You can cancel and try again.</p>
+          <button type="button" className="btn btn-outline btn-sm" onClick={onCancel}>
+            Cancel and retry
+          </button>
+        </div>
+      )}
     </div>
   );
 }

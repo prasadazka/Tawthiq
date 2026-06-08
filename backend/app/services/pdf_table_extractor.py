@@ -15,6 +15,7 @@ import json
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 
 import fitz  # PyMuPDF
 
@@ -231,13 +232,23 @@ def extract_table(pdf_bytes: bytes, table: dict) -> dict:
         }
 
 
-def extract_all_tables(pdf_bytes: bytes, max_workers: int = 24) -> dict:
+def extract_all_tables(
+    pdf_bytes: bytes,
+    max_workers: int = 24,
+    extract_budget_seconds: int = 480,
+) -> dict:
     """Two-pass extraction: inventory + parallel per-table extraction.
 
+    extract_budget_seconds caps the per-table extraction phase. When the
+    budget is exceeded, every future that hasn't completed is marked as
+    timed-out and the request returns with `partial: true`. The inventory
+    pass is not subject to this budget (it must complete to know what to
+    extract); inventory typically takes 30-150s.
+
     max_workers default 24 = roughly one round of parallel calls for a typical
-    Saudi audit PDF (20-40 tables). Vertex AI Gemini Flash supports hundreds
-    of concurrent requests per project; 24 keeps us well under any quota
-    while still finishing most PDFs in ~60-90s instead of 4+ minutes.
+    Saudi audit PDF. Vertex AI Gemini Flash supports hundreds of concurrent
+    requests per project; 24 keeps us well under any quota while still
+    finishing most PDFs in ~60-90s instead of 4+ minutes.
     """
     t_start = time.time()
 
@@ -251,16 +262,59 @@ def extract_all_tables(pdf_bytes: bytes, max_workers: int = 24) -> dict:
     inv = inventory_tables(pdf_bytes)
     tables = inv.get("tables", [])
 
-    # 2. Parallel extraction — cap workers at the number of tables (no point
-    # over-spawning for small PDFs).
+    # 2. Parallel extraction with a total wall-clock budget so a single hung
+    #    future cannot block the whole request. When the budget is hit, every
+    #    unfinished future is recorded as timed_out and we return partial.
     extracted: list[dict] = []
+    partial = False
+    timed_out_count = 0
     if tables:
         workers = min(max_workers, max(1, len(tables)))
-        logger.info(f"PDF tables: extracting {len(tables)} tables in parallel ({workers} workers)")
-        with ThreadPoolExecutor(max_workers=workers) as ex:
+        logger.info(
+            f"PDF tables: extracting {len(tables)} tables in parallel "
+            f"({workers} workers, budget {extract_budget_seconds}s)"
+        )
+        ex = ThreadPoolExecutor(max_workers=workers)
+        try:
             futures = {ex.submit(extract_table, pdf_bytes, t): t for t in tables}
-            for fut in as_completed(futures):
-                extracted.append(fut.result())
+            try:
+                for fut in as_completed(futures, timeout=extract_budget_seconds):
+                    extracted.append(fut.result())
+            except FuturesTimeoutError:
+                partial = True
+                logger.warning(
+                    f"PDF tables: extract budget ({extract_budget_seconds}s) exceeded — "
+                    f"returning partial results"
+                )
+                # Collect whatever has already completed; mark the rest as timed-out.
+                for fut, src_table in futures.items():
+                    if fut.done():
+                        try:
+                            extracted.append(fut.result())
+                        except Exception as exc:
+                            extracted.append({
+                                "table_id": src_table.get("table_id"),
+                                "found": False,
+                                "error": f"call failed: {exc}",
+                                "target_title": src_table.get("title"),
+                                "category": src_table.get("category"),
+                            })
+                    else:
+                        timed_out_count += 1
+                        extracted.append({
+                            "table_id": src_table.get("table_id"),
+                            "found": False,
+                            "error": (
+                                f"timed out — extraction budget of "
+                                f"{extract_budget_seconds}s exceeded before this table finished"
+                            ),
+                            "target_title": src_table.get("title"),
+                            "category": src_table.get("category"),
+                            "page": src_table.get("page"),
+                        })
+        finally:
+            # Don't wait for hung futures to drain — let them die with the worker pool.
+            ex.shutdown(wait=False, cancel_futures=True)
 
     # Sort by page for stable order
     extracted.sort(key=lambda r: (r.get("page") if isinstance(r.get("page"), int) else 9999))
@@ -271,6 +325,8 @@ def extract_all_tables(pdf_bytes: bytes, max_workers: int = 24) -> dict:
         "page_count": page_count,
         "table_count_inventory": len(tables),
         "table_count_extracted": sum(1 for r in extracted if r.get("found")),
+        "table_count_timed_out": timed_out_count,
+        "partial": partial,
         "total_rows": total_rows,
         "elapsed_seconds": elapsed,
         "inventory": tables,

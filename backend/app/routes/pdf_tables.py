@@ -43,6 +43,8 @@ async def extract_tables(file: UploadFile = File(...)):
         "page_count": result["page_count"],
         "table_count_inventory": result["table_count_inventory"],
         "table_count_extracted": result["table_count_extracted"],
+        "table_count_timed_out": result.get("table_count_timed_out", 0),
+        "partial": result.get("partial", False),
         "total_rows": result["total_rows"],
         "extraction_seconds": result["elapsed_seconds"],
         "total_seconds": total_seconds,

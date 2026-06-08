@@ -9,6 +9,10 @@ interface Props {
   elapsedSeconds?: number;
   onReset?: () => void;
   showHeader?: boolean;
+  /** When set, shows a warning banner: some tables timed out and the result is partial. */
+  partial?: boolean;
+  timedOutCount?: number;
+  onRetry?: () => void;
 }
 
 function formatCell(value: string | number | null): string {
@@ -92,6 +96,9 @@ export default function PdfTablesList({
   elapsedSeconds,
   onReset,
   showHeader = true,
+  partial = false,
+  timedOutCount = 0,
+  onRetry,
 }: Props) {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -151,6 +158,24 @@ export default function PdfTablesList({
           {onReset && (
             <button type="button" className="btn btn-outline btn-sm" onClick={onReset}>
               New PDF
+            </button>
+          )}
+        </div>
+      )}
+
+      {partial && (
+        <div className="pdf-tables-partial">
+          <div className="pdf-tables-partial-icon">!</div>
+          <div className="pdf-tables-partial-body">
+            <strong>Partial result.</strong>{" "}
+            {timedOutCount > 0
+              ? `${timedOutCount} table${timedOutCount === 1 ? "" : "s"} timed out before finishing. `
+              : "Some tables timed out before finishing. "}
+            The tables below are everything that completed. Retry to attempt the rest.
+          </div>
+          {onRetry && (
+            <button type="button" className="btn btn-outline btn-sm" onClick={onRetry}>
+              Retry extraction
             </button>
           )}
         </div>

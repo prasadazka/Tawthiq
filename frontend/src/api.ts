@@ -199,6 +199,8 @@ export interface PdfTablesResponse {
   page_count: number;
   table_count_inventory: number;
   table_count_extracted: number;
+  table_count_timed_out?: number;
+  partial?: boolean;
   total_rows: number;
   extraction_seconds: number;
   total_seconds: number;
@@ -262,12 +264,16 @@ export async function generateSaudiXBRL(
   };
 }
 
-export async function extractPdfTables(file: File): Promise<PdfTablesResponse> {
+export async function extractPdfTables(
+  file: File,
+  signal?: AbortSignal,
+): Promise<PdfTablesResponse> {
   const formData = new FormData();
   formData.append("file", file);
   const res = await fetch(`${API_BASE}/api/pdf-tables/extract`, {
     method: "POST",
     body: formData,
+    signal,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Extraction failed" }));

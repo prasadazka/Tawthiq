@@ -22,6 +22,7 @@ interface Props {
   tablesLoading?: boolean;
   tablesError?: string | null;
   tablesStartedAt?: number | null;
+  onCancelTables?: () => void;
   // XBRL gating + actions
   xbrlReady?: boolean;
   xbrlGenerating?: boolean;
@@ -34,7 +35,7 @@ interface Props {
 
 export default function ValidationViewer({
   data, pdfFile, onReset, duration, view = "rules", onPickField,
-  tablesData, tablesLoading, tablesError, tablesStartedAt,
+  tablesData, tablesLoading, tablesError, tablesStartedAt, onCancelTables,
   xbrlReady, xbrlGenerating, xbrlResult, xbrlError, xbrlStartedAt,
   onGenerateXbrl, onOpenTablesTab,
 }: Props) {
@@ -88,6 +89,7 @@ export default function ValidationViewer({
             mode="pdf_tables"
             fileSummary={data.filename}
             startedAt={tablesStartedAt ?? undefined}
+            onCancel={onCancelTables}
           />
         </div>
       );
@@ -112,6 +114,8 @@ export default function ValidationViewer({
             pageCount={tablesData.page_count}
             elapsedSeconds={tablesData.total_seconds}
             showHeader
+            partial={tablesData.partial}
+            timedOutCount={tablesData.table_count_timed_out}
           />
         </div>
       );
