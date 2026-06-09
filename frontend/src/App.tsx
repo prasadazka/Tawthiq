@@ -1,9 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import UploadZone from "./components/UploadZone";
 import ValidationViewer from "./components/ValidationViewer";
 import IndianXBRL from "./components/IndianXBRL";
 import PdfTables from "./components/PdfTables";
 import ProcessingView from "./components/ProcessingView";
+import Landing from "./components/Landing";
 import {
   validateDocument,
   extractPdfTables,
@@ -21,6 +22,28 @@ type TablesStage = "idle" | "extracting" | "done" | "error";
 type ResultsView = "rules" | "fields" | "tables" | "xbrl";
 
 function App() {
+  // Landing page is shown by default. Clicking "Tawthiq Tool" — or visiting
+  // the site with #tool / ?tool=1 in the URL — drops the user straight into
+  // the existing app. Browser back button restores the landing view.
+  const [showLanding, setShowLanding] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return !(window.location.hash === "#tool"
+      || window.location.search.includes("tool=1"));
+  });
+
+  useEffect(() => {
+    const onHash = () => setShowLanding(window.location.hash !== "#tool");
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  const launchTool = () => {
+    setShowLanding(false);
+    if (window.location.hash !== "#tool") {
+      window.history.pushState(null, "", "#tool");
+    }
+  };
+
   const [activeTab, setActiveTab] = useState<TabKey>("saudi");
   const [state, setState] = useState<AppState>("idle");
   const [indianStage, setIndianStage] = useState<IndianStage>("idle");
@@ -169,6 +192,10 @@ function App() {
   const hideIndianTab = activeTab === "saudi" && saudiCommitted;
   const hideTablesTab = (activeTab === "saudi" && saudiCommitted) || (activeTab === "indian" && indianCommitted);
 
+  if (showLanding) {
+    return <Landing onLaunchTool={launchTool} />;
+  }
+
   return (
     <div className={`app ${isSaudiResultsMode ? "app-viewer-mode" : ""}`}>
       {/* Nav with tabs */}
@@ -256,7 +283,10 @@ function App() {
                   PDF Validation
                 </button>
               )}
-              {!hideTablesTab && (
+              {/* Top-level PDF Tables tab hidden — table extraction is now a
+                  sub-tab inside the validation results. Set the guard to true
+                  to bring it back as a standalone landing page. */}
+              {false && !hideTablesTab && (
                 <button
                   type="button"
                   className={`nav-tab ${activeTab === "tables" ? "nav-tab-active" : ""}`}
