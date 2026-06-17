@@ -302,28 +302,46 @@ def extract_table(pdf_bytes: bytes, table: dict) -> dict:
         }
 
 
-PRIORITY_PRIMARY_CATEGORIES = {"primary_statement"}
-PRIORITY_NOTE_KEYWORDS = ("revenue",)
-
-
-def _filter_priority_tables(tables: list[dict]) -> list[dict]:
-    """Keep only the top-5: every primary statement + first revenue-note schedule.
-
-    Generic across PDFs — relies on the inventory's `category` field (primary_statement
-    covers BS / P&L / SoCE / CFS) plus a table_id keyword match for the revenue note.
-    """
-    kept: list[dict] = []
-    seen_revenue = False
-    for t in tables:
-        cat = (t.get("category") or "").lower()
-        tid = (t.get("table_id") or "").lower()
-        if cat in PRIORITY_PRIMARY_CATEGORIES:
-            kept.append(t)
-            continue
-        if not seen_revenue and any(kw in tid for kw in PRIORITY_NOTE_KEYWORDS):
-            kept.append(t)
-            seen_revenue = True
-    return kept
+# The 4 universal IFRS primary statements. Hardcoded so priority_only mode can
+# skip the inventory pass entirely and ask Gemini for each by name in parallel.
+PRIMARY_TARGETS: list[dict] = [
+    {
+        "table_id": "balance_sheet",
+        "title": (
+            "Consolidated Statement of Financial Position (Balance Sheet) — primary statement "
+            "showing assets, liabilities, and equity at year-end with comparative prior year"
+        ),
+        "page": "find it",
+        "category": "primary_statement",
+    },
+    {
+        "table_id": "profit_or_loss_and_oci",
+        "title": (
+            "Consolidated Statement of Profit or Loss and Other Comprehensive Income — primary "
+            "statement showing revenue, expenses, and profit for the year with comparative prior year"
+        ),
+        "page": "find it",
+        "category": "primary_statement",
+    },
+    {
+        "table_id": "cash_flows",
+        "title": (
+            "Consolidated Statement of Cash Flows — primary statement showing operating, "
+            "investing, and financing cash flows with comparative prior year"
+        ),
+        "page": "find it",
+        "category": "primary_statement",
+    },
+    {
+        "table_id": "changes_in_equity",
+        "title": (
+            "Consolidated Statement of Changes in Equity — primary statement showing movements in "
+            "share capital, reserves, and retained earnings across both current and prior year"
+        ),
+        "page": "find it",
+        "category": "primary_statement",
+    },
+]
 
 
 def extract_all_tables(
@@ -353,26 +371,29 @@ def extract_all_tables(
     page_count = len(doc)
     doc.close()
 
-    # 1. Inventory — parallel over page chunks
-    logger.info("PDF tables: running parallel inventory pass")
-    t_inv = time.time()
-    inv = inventory_tables_parallel(
-        pdf_bytes,
-        pages_per_chunk=inventory_pages_per_chunk,
-        max_workers=inventory_workers,
-    )
-    tables = inv.get("tables", [])
-    inventory_total = len(tables)
-    logger.info(
-        f"PDF tables: inventory complete in {round(time.time()-t_inv, 1)}s "
-        f"({inventory_total} tables across {page_count} pages)"
-    )
-
+    # 1. Inventory pass — only when running a full sweep. In priority mode we
+    # skip the inventory entirely (saves ~50s) and ask Gemini for the 4 known
+    # primary statements directly by name in parallel.
     if priority_only:
-        tables = _filter_priority_tables(tables)
+        tables = [dict(t) for t in PRIMARY_TARGETS]
+        inventory_total = 0
         logger.info(
-            f"PDF tables: priority_only=True — kept {len(tables)}/{inventory_total} tables "
-            f"({[t.get('table_id') for t in tables]})"
+            f"PDF tables: priority_only=True — skipping inventory, extracting "
+            f"{len(tables)} primary statements directly"
+        )
+    else:
+        logger.info("PDF tables: running parallel inventory pass")
+        t_inv = time.time()
+        inv = inventory_tables_parallel(
+            pdf_bytes,
+            pages_per_chunk=inventory_pages_per_chunk,
+            max_workers=inventory_workers,
+        )
+        tables = inv.get("tables", [])
+        inventory_total = len(tables)
+        logger.info(
+            f"PDF tables: inventory complete in {round(time.time()-t_inv, 1)}s "
+            f"({inventory_total} tables across {page_count} pages)"
         )
 
     # 2. Parallel extraction with a total wall-clock budget so a single hung
