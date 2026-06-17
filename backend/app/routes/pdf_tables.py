@@ -18,8 +18,17 @@ router = APIRouter(prefix="/api/pdf-tables", tags=["pdf-tables"])
 
 
 @router.post("/extract")
-async def extract_tables(file: UploadFile = File(...)):
-    """Extract every table from a PDF and return them as structured JSON."""
+async def extract_tables(
+    file: UploadFile = File(...),
+    priority_only: bool = True,
+):
+    """Extract tables from a PDF as structured JSON.
+
+    priority_only=true (default) — fast mode: only the 4 primary statements
+        (Balance Sheet, P&L/OCI, Cash Flow, Changes in Equity) plus the
+        revenue note. ~5 tables, finishes in seconds.
+    priority_only=false — full sweep over every table the inventory finds.
+    """
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="File must be a PDF")
 
@@ -31,7 +40,7 @@ async def extract_tables(file: UploadFile = File(...)):
 
     t_start = time.time()
     try:
-        result = extract_all_tables(pdf_bytes)
+        result = extract_all_tables(pdf_bytes, priority_only=priority_only)
     except Exception as exc:
         logger.exception("PDF table extraction failed")
         raise HTTPException(status_code=502, detail=f"Extraction failed: {exc}")
@@ -40,8 +49,10 @@ async def extract_tables(file: UploadFile = File(...)):
     return {
         "filename": file.filename,
         "success": True,
+        "mode": result.get("mode", "full"),
         "page_count": result["page_count"],
         "table_count_inventory": result["table_count_inventory"],
+        "table_count_selected": result.get("table_count_selected", result["table_count_inventory"]),
         "table_count_extracted": result["table_count_extracted"],
         "table_count_timed_out": result.get("table_count_timed_out", 0),
         "partial": result.get("partial", False),

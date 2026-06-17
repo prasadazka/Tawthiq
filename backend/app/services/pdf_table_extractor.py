@@ -302,12 +302,37 @@ def extract_table(pdf_bytes: bytes, table: dict) -> dict:
         }
 
 
+PRIORITY_PRIMARY_CATEGORIES = {"primary_statement"}
+PRIORITY_NOTE_KEYWORDS = ("revenue",)
+
+
+def _filter_priority_tables(tables: list[dict]) -> list[dict]:
+    """Keep only the top-5: every primary statement + first revenue-note schedule.
+
+    Generic across PDFs — relies on the inventory's `category` field (primary_statement
+    covers BS / P&L / SoCE / CFS) plus a table_id keyword match for the revenue note.
+    """
+    kept: list[dict] = []
+    seen_revenue = False
+    for t in tables:
+        cat = (t.get("category") or "").lower()
+        tid = (t.get("table_id") or "").lower()
+        if cat in PRIORITY_PRIMARY_CATEGORIES:
+            kept.append(t)
+            continue
+        if not seen_revenue and any(kw in tid for kw in PRIORITY_NOTE_KEYWORDS):
+            kept.append(t)
+            seen_revenue = True
+    return kept
+
+
 def extract_all_tables(
     pdf_bytes: bytes,
     max_workers: int = 48,
     extract_budget_seconds: int = 1200,
     inventory_pages_per_chunk: int = 20,
     inventory_workers: int = 6,
+    priority_only: bool = True,
 ) -> dict:
     """Two-pass extraction: parallel inventory + parallel per-table extraction.
 
@@ -337,10 +362,18 @@ def extract_all_tables(
         max_workers=inventory_workers,
     )
     tables = inv.get("tables", [])
+    inventory_total = len(tables)
     logger.info(
         f"PDF tables: inventory complete in {round(time.time()-t_inv, 1)}s "
-        f"({len(tables)} tables across {page_count} pages)"
+        f"({inventory_total} tables across {page_count} pages)"
     )
+
+    if priority_only:
+        tables = _filter_priority_tables(tables)
+        logger.info(
+            f"PDF tables: priority_only=True — kept {len(tables)}/{inventory_total} tables "
+            f"({[t.get('table_id') for t in tables]})"
+        )
 
     # 2. Parallel extraction with a total wall-clock budget so a single hung
     #    future cannot block the whole request. When the budget is hit, every
@@ -403,7 +436,9 @@ def extract_all_tables(
     elapsed = round(time.time() - t_start, 1)
     return {
         "page_count": page_count,
-        "table_count_inventory": len(tables),
+        "mode": "priority" if priority_only else "full",
+        "table_count_inventory": inventory_total,
+        "table_count_selected": len(tables),
         "table_count_extracted": sum(1 for r in extracted if r.get("found")),
         "table_count_timed_out": timed_out_count,
         "partial": partial,
