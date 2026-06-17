@@ -120,6 +120,35 @@ ORIENTATION & LAYOUT:
 - Multi-line column headers join into one space-separated string.
 - Empty cells / dashes → null. "0" stays 0.
 
+──────────────────────────────────────────────────────────────────────────
+SCRIPT DIRECTION — RTL vs LTR (Arabic / Hebrew vs Latin):
+
+Determine the table's primary script direction and set "direction" in the
+output to "rtl" or "ltr".
+
+- LTR (English, French, Latin scripts): physically left-to-right.
+    Page layout: [description | Notes | newer year | older year]
+    Set "direction": "ltr".
+- RTL (Arabic, Hebrew, Farsi): physically right-to-left.
+    Page layout (visually): [older year | newer year | Notes | description]
+    where description sits on the RIGHT side of the page.
+    Set "direction": "rtl".
+
+REGARDLESS of script direction, the "columns" array MUST be emitted in
+READING ORDER — i.e. the description/line_item column is ALWAYS the FIRST
+element of the columns array, followed by Notes (if any), then value
+columns from latest year to earliest year.
+
+This means:
+- LTR table on the page: columns array order matches physical left-to-right.
+- RTL table on the page: columns array order matches reading order
+  (description first), which is the visual RIGHT-to-LEFT scan. Do NOT
+  output the physically-leftmost (= oldest year) column first.
+
+The frontend uses "direction" to render the table in the right CSS
+direction. The data itself stays consistent (description-first) so
+downstream code does not have to special-case the script.
+
 NUMERIC VALUES — MUST BE JSON NUMBERS, NOT STRINGS:
 - Every numeric cell must be emitted as a JSON number: 2524035458, not "2524035458".
 - Strip thousands separators: "1,234,567" → 1234567 (number, no commas, no quotes).
@@ -174,10 +203,11 @@ OUTPUT SHAPE (JSON only — no markdown, no preamble):
   "table_id": "{table_id}",
   "found": true|false,
   "page": <int>,
-  "title_as_printed": "<exact heading from PDF>",
-  "columns": [<list of column keys in left-to-right order, EXACTLY as the PDF prints headers; use "line_item" only when the PDF header is blank>],
+  "title_as_printed": "<exact heading from PDF, in the PDF's native script>",
+  "direction": "rtl" | "ltr",
+  "columns": [<column keys in READING order — description/line_item FIRST, then Notes, then value columns latest-year-first; use "line_item" only when the PDF header is blank>],
   "rows": [<one object per data row, with one key per column from the list above>],
-  "currency": "SAR" | "USD" | "INR" | null,
+  "currency": "SAR" | "USD" | "INR" | "EUR" | null,
   "notes": null | "<one short caveat>"
 }}
 
@@ -308,8 +338,9 @@ PRIMARY_TARGETS: list[dict] = [
     {
         "table_id": "balance_sheet",
         "title": (
-            "Consolidated Statement of Financial Position (Balance Sheet) — primary statement "
-            "showing assets, liabilities, and equity at year-end with comparative prior year"
+            "Consolidated Statement of Financial Position (Balance Sheet) / "
+            "قائمة المركز المالي الموحدة — primary statement showing assets, liabilities, "
+            "and equity at year-end with comparative prior year"
         ),
         "page": "find it",
         "category": "primary_statement",
@@ -317,8 +348,9 @@ PRIMARY_TARGETS: list[dict] = [
     {
         "table_id": "profit_or_loss_and_oci",
         "title": (
-            "Consolidated Statement of Profit or Loss and Other Comprehensive Income — primary "
-            "statement showing revenue, expenses, and profit for the year with comparative prior year"
+            "Consolidated Statement of Profit or Loss and Other Comprehensive Income / "
+            "قائمة الربح أو الخسارة والدخل الشامل الآخر الموحدة — primary statement showing "
+            "revenue, expenses, and profit for the year with comparative prior year"
         ),
         "page": "find it",
         "category": "primary_statement",
@@ -326,8 +358,8 @@ PRIMARY_TARGETS: list[dict] = [
     {
         "table_id": "cash_flows",
         "title": (
-            "Consolidated Statement of Cash Flows — primary statement showing operating, "
-            "investing, and financing cash flows with comparative prior year"
+            "Consolidated Statement of Cash Flows / قائمة التدفقات النقدية الموحدة — primary "
+            "statement showing operating, investing, and financing cash flows with comparative prior year"
         ),
         "page": "find it",
         "category": "primary_statement",
@@ -335,8 +367,9 @@ PRIMARY_TARGETS: list[dict] = [
     {
         "table_id": "changes_in_equity",
         "title": (
-            "Consolidated Statement of Changes in Equity — primary statement showing movements in "
-            "share capital, reserves, and retained earnings across both current and prior year"
+            "Consolidated Statement of Changes in Equity / قائمة التغيرات في حقوق الملكية الموحدة "
+            "— primary statement showing movements in share capital, reserves, and retained earnings "
+            "across both current and prior year"
         ),
         "page": "find it",
         "category": "primary_statement",
