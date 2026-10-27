@@ -24,6 +24,15 @@ const GENERATE_STEPS: Step[] = [
   { id: "encode", label: "Encoding XBRL XML", detail: "UTF-16 encoding, MCA-portal compatible", etaSeconds: 2 },
 ];
 
+const SAUDI_XBRL_STEPS: Step[] = [
+  { id: "load-taxonomy", label: "Loading Saudi-IFRS taxonomy", detail: "57 concepts: ifrs-full + SOCPA extensions (Zakat, CR, Unified Number)", etaSeconds: 1 },
+  { id: "map-text", label: "Resolving text concepts from rules", detail: "Company name, CR, auditor, unified number — pulled from rule evidence quotes", etaSeconds: 1 },
+  { id: "map-tables", label: "Resolving numeric concepts from tables", detail: "Section-strict matching against primary statements (BS / P&L / CF / Equity)", etaSeconds: 2 },
+  { id: "ai-fallback", label: "AI fallback for unresolved concepts", detail: "Single Gemini call maps unmatched IFRS concepts to PDF rows", etaSeconds: 45 },
+  { id: "build-contexts", label: "Building XBRL contexts and units", detail: "instant_cy / duration_cy / instant_py / duration_py + SAR unit", etaSeconds: 1 },
+  { id: "emit", label: "Emitting XBRL XML", detail: "ifrs-full + socpa facts, schemaRef to IFRS 2024 entry point", etaSeconds: 2 },
+];
+
 const VALIDATE_STEPS: Step[] = [
   { id: "upload", label: "File received", detail: "Verifying PDF signature and size", etaSeconds: 1 },
   { id: "parse", label: "Reading the PDF", detail: "Indexing pages with PyMuPDF", etaSeconds: 3 },
@@ -58,6 +67,16 @@ const TIPS_VALIDATE = [
   "Sector-specific rules apply for Banking, Insurance and NPO documents.",
 ];
 
+const TIPS_SAUDI_XBRL = [
+  "Saudi-IFRS XBRL uses the IFRS Foundation taxonomy + a SOCPA extension layer.",
+  "Zakat, Unified Number, CR Number and Auditor License live in the socpa namespace.",
+  "Each fact is tagged with one of four contexts: instant_cy, instant_py, duration_cy, duration_py.",
+  "Numbers use iso4217:SAR; EPS uses a per-share unit derived from SAR ÷ shares.",
+  "Arabic-Indic digits in the source PDF are normalised to Latin before XBRL emission.",
+  "Section-strict matching keeps Balance Sheet items from being grabbed from Cash Flow rows.",
+  "When the catalog doesn't cover a concept, the AI fallback only matches by meaning — never invents.",
+];
+
 const TIPS_PDF_TABLES = [
   "Inventory first, extract second — keeps the model focused per table.",
   "Tables rotated 90° (landscape on portrait page) are read in their natural order.",
@@ -69,7 +88,7 @@ const TIPS_PDF_TABLES = [
 ];
 
 interface Props {
-  mode: "extracting" | "generating" | "validating" | "pdf_tables";
+  mode: "extracting" | "generating" | "validating" | "pdf_tables" | "saudi_xbrl";
   fileSummary?: string;
   /**
    * Wall-clock timestamp (Date.now()) when the underlying request started.
@@ -107,6 +126,11 @@ const MODE_CONFIG: Record<Props["mode"], { steps: Step[]; tips: string[]; note: 
     steps: PDF_TABLES_STEPS,
     tips: TIPS_PDF_TABLES,
     note: "Inventory + per-table extraction — typically 60–90 seconds",
+  },
+  saudi_xbrl: {
+    steps: SAUDI_XBRL_STEPS,
+    tips: TIPS_SAUDI_XBRL,
+    note: "Mapping + AI fallback + XBRL emission — typically 45–60 seconds",
   },
 };
 
