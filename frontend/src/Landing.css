@@ -72,3 +72,44 @@ body {
   outline: 2px solid #00653e;
   outline-offset: 2px;
 }
+
+/* ---------------------------------------------------------------------
+   Brand-name patch layer (see components/LandingBrandPatches.tsx).
+
+   The Figma SVG has all text flattened to vector outlines, so the product
+   name can't be edited in the asset. Each patch repaints its original
+   block and re-typesets the line as real HTML. `container-type` turns the
+   stage into a query container so the patches can size themselves in cqw
+   and scale exactly with the SVG.
+   --------------------------------------------------------------------- */
+.lp-figma-stage {
+  container-type: inline-size;
+}
+
+.lp-patch {
+  position: absolute;
+  display: flex;
+  overflow: hidden;
+  box-sizing: border-box;
+  pointer-events: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Normal inline flow, NOT flex. As flex items the separate text nodes of a
+   two-tone line ("Why " + <span>Audit Siddhi</span> + " Wins?") would have
+   their leading/trailing spaces trimmed, giving "WhyAudit SiddhiWins?".
+   The parent .lp-patch does the centring; this element just holds text. */
+.lp-patch-text {
+  display: block;
+  width: 100%;
+  text-align: inherit;
+}
+
+.lp-patch-icon {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  margin-right: 0.55em;
+  vertical-align: -0.25em;
+}

@@ -8,6 +8,7 @@
  * at the exact button coordinates from css.txt so the page is interactive.
  */
 import "../Landing.css";
+import LandingBrandPatches from "./LandingBrandPatches";
 
 interface Props {
   onLaunchTool: () => void;
@@ -39,10 +40,14 @@ export default function Landing({ onLaunchTool }: Props) {
   //                                  with 150px padding → x=1584, y=30
   //   Hero "Book a Demo"         →  css.txt L287-364: 226×52 @ (117, 720)
   //   Hero "Audit Siddhi Tool" (gray) →  css.txt L371-410: 190×52 @ (361, 720)
+  //
+  // The two "…Tool" buttons are repainted wider by LandingBrandPatches so the
+  // longer label fits, so their hotspots follow the repainted rects, not the
+  // original Figma ones.
   const hotspots: Hotspot[] = [
-    { x: 1584, y: 30,  w: 186, h: 46, label: "Launch Audit Siddhi Tool",  onClick: onLaunchTool },
+    { x: 1518, y: 30,  w: 252, h: 46, label: "Launch Audit Siddhi Tool",  onClick: onLaunchTool },
     { x: 117,  y: 720, w: 226, h: 52, label: "Book a Demo",          href: "mailto:hello@azkashine.com?subject=Audit%20Siddhi%20Demo%20Request" },
-    { x: 361,  y: 720, w: 190, h: 52, label: "Launch Audit Siddhi Tool",  onClick: onLaunchTool },
+    { x: 361,  y: 720, w: 248, h: 52, label: "Launch Audit Siddhi Tool",  onClick: onLaunchTool },
   ];
 
   return (
@@ -56,6 +61,9 @@ export default function Landing({ onLaunchTool }: Props) {
           decoding="async"
           draggable={false}
         />
+        {/* Re-typeset brand name over the flattened SVG outlines. Rendered
+            before the hotspots so the clickable layer stays on top. */}
+        <LandingBrandPatches />
         {hotspots.map((h, i) => {
           const style: React.CSSProperties = {
             position: "absolute",
