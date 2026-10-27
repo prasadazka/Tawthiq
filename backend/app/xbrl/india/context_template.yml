@@ -6,7 +6,7 @@
 encoding: utf-16
 
 # Generator stamp (XML comment on line 2 of output)
-generator_comment: "XBRL Instance Document Created From Tawthiq XBRL Engine"
+generator_comment: "XBRL Instance Document Created From Audit Siddhi XBRL Engine"
 
 # Schema reference — MCA-hosted entry point for Commercial & Industrial entities
 schema_ref: "http://www.mca.gov.in/XBRL/2016/07/26/Taxonomy/CnI/in-ci-ent-2016-03-31.xsd"

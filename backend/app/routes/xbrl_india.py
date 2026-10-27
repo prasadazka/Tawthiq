@@ -237,11 +237,11 @@ async def generate_xbrl(
     xml_bytes = gen_result.xml.encode("utf-16")
     headers = {
         "Content-Disposition": f'attachment; filename="{gen_result.filename}"',
-        "X-Tawthiq-Facts": f"{gen_result.facts_filled}/{gen_result.fact_count}",
-        "X-Tawthiq-Contexts": str(gen_result.context_count),
-        "X-Tawthiq-Validation-Passed": str(report.passed).lower(),
-        "X-Tawthiq-Warnings": str(len(report.warnings)),
-        "X-Tawthiq-Elapsed-Seconds": str(total_seconds),
+        "X-Audit-Siddhi-Facts": f"{gen_result.facts_filled}/{gen_result.fact_count}",
+        "X-Audit-Siddhi-Contexts": str(gen_result.context_count),
+        "X-Audit-Siddhi-Validation-Passed": str(report.passed).lower(),
+        "X-Audit-Siddhi-Warnings": str(len(report.warnings)),
+        "X-Audit-Siddhi-Elapsed-Seconds": str(total_seconds),
     }
     return Response(content=xml_bytes, media_type="application/xml", headers=headers)
 
@@ -367,8 +367,8 @@ async def generate_excel_endpoint(
 
     headers = {
         "Content-Disposition": f'attachment; filename="{excel_out.filename}"',
-        "X-Tawthiq-Sheets": str(excel_out.sheet_count),
-        "X-Tawthiq-Cells": str(excel_out.cell_count),
+        "X-Audit-Siddhi-Sheets": str(excel_out.sheet_count),
+        "X-Audit-Siddhi-Cells": str(excel_out.cell_count),
     }
     return Response(
         content=excel_out.xlsx_bytes,
@@ -393,7 +393,7 @@ async def generate_excel_from_json(req: ExcelFromJSONRequest):
         raise HTTPException(status_code=500, detail=f"Excel generation failed: {excel.error}")
     headers = {
         "Content-Disposition": f'attachment; filename="{excel.filename}"',
-        "X-Tawthiq-Sheets": str(excel.sheet_count),
+        "X-Audit-Siddhi-Sheets": str(excel.sheet_count),
     }
     return Response(
         content=excel.xlsx_bytes,

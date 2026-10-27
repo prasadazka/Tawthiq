@@ -1,4 +1,4 @@
-# Tawthiq IFRS Core Mapper v1 — Saudi Arabia
+# Audit Siddhi IFRS Core Mapper v1 — Saudi Arabia
 #
 # Common IFRS concepts used by Saudi listed company annual reports, plus a
 # SOCPA extension layer for Saudi-specific items (Zakat, Unified Number, etc.).
@@ -15,7 +15,7 @@
 #   synonyms      : list[str] (optional) — alternate labels companies use
 
 metadata:
-  name: "Tawthiq IFRS Core Mapper v1"
+  name: "Audit Siddhi IFRS Core Mapper v1"
   taxonomy: "ifrs-full"
   country: "saudi_arabia"
   version: "1.0"

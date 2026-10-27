@@ -532,7 +532,7 @@ def _format_value(value: Any) -> str:
 
 # ── public generator ─────────────────────────────────────────────────────────
 
-def generate_xbrl(data: dict, filename_base: str = "tawthiq_xbrl") -> XBRLResult:
+def generate_xbrl(data: dict, filename_base: str = "audit_siddhi_xbrl") -> XBRLResult:
     """Load template, fill in values from extracted JSON, return XBRL bytes."""
     try:
         if not TEMPLATE_XBRL_PATH.exists():

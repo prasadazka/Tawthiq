@@ -250,7 +250,7 @@ export default function DualUploadZone({ onFilesReady, disabled }: Props) {
           {cta}
         </button>
         <p className="dual-upload-note">
-          Tawthiq merges both sources — Excel supplies precise schedules and ratios, the PDF supplies signatures, narratives and the audit opinion.
+          Audit Siddhi merges both sources — Excel supplies precise schedules and ratios, the PDF supplies signatures, narratives and the audit opinion.
         </p>
       </div>
     </div>

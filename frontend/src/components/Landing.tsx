@@ -1,5 +1,5 @@
 /**
- * Landing page for tawthiq.ai
+ * Landing page for auditsiddhi.ai
  *
  * Renders the Figma export (svg.txt → /landing/landing-figma.svg) directly.
  * The SVG contains every vector path, gradient, filter, embedded image and
@@ -35,14 +35,14 @@ interface Hotspot {
 export default function Landing({ onLaunchTool }: Props) {
   // Coordinates taken straight from css.txt:
   //
-  //   Header "Tawthiq Tool" CTA  →  bar y:0 h:106, button 186×46, right-aligned
+  //   Header "Audit Siddhi Tool" CTA  →  bar y:0 h:106, button 186×46, right-aligned
   //                                  with 150px padding → x=1584, y=30
   //   Hero "Book a Demo"         →  css.txt L287-364: 226×52 @ (117, 720)
-  //   Hero "Tawthiq Tool" (gray) →  css.txt L371-410: 190×52 @ (361, 720)
+  //   Hero "Audit Siddhi Tool" (gray) →  css.txt L371-410: 190×52 @ (361, 720)
   const hotspots: Hotspot[] = [
-    { x: 1584, y: 30,  w: 186, h: 46, label: "Launch Tawthiq Tool",  onClick: onLaunchTool },
-    { x: 117,  y: 720, w: 226, h: 52, label: "Book a Demo",          href: "mailto:hello@azkashine.com?subject=Tawthiq%20Demo%20Request" },
-    { x: 361,  y: 720, w: 190, h: 52, label: "Launch Tawthiq Tool",  onClick: onLaunchTool },
+    { x: 1584, y: 30,  w: 186, h: 46, label: "Launch Audit Siddhi Tool",  onClick: onLaunchTool },
+    { x: 117,  y: 720, w: 226, h: 52, label: "Book a Demo",          href: "mailto:hello@azkashine.com?subject=Audit%20Siddhi%20Demo%20Request" },
+    { x: 361,  y: 720, w: 190, h: 52, label: "Launch Audit Siddhi Tool",  onClick: onLaunchTool },
   ];
 
   return (
@@ -51,7 +51,7 @@ export default function Landing({ onLaunchTool }: Props) {
         <img
           className="lp-figma-svg"
           src="/landing/landing-figma.svg"
-          alt="Tawthiq — From Financial Statements to Regulatory Filing"
+          alt="Audit Siddhi — From Financial Statements to Regulatory Filing"
           loading="eager"
           decoding="async"
           draggable={false}

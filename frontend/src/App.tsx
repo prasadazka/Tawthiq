@@ -22,7 +22,7 @@ type TablesStage = "idle" | "extracting" | "done" | "error";
 type ResultsView = "rules" | "fields" | "tables" | "xbrl";
 
 function App() {
-  // Landing page is shown by default. Clicking "Tawthiq Tool" — or visiting
+  // Landing page is shown by default. Clicking "Audit Siddhi Tool" — or visiting
   // the site with #tool / ?tool=1 in the URL — drops the user straight into
   // the existing app. Browser back button restores the landing view.
   const [showLanding, setShowLanding] = useState<boolean>(() => {
@@ -205,7 +205,7 @@ function App() {
             <path d="M9 12l2 2 4-4" />
             <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />
           </svg>
-          <span>Tawtheeq</span>
+          <span>Audit Siddhi</span>
         </div>
         <div className="nav-tabs">
           {isSaudiResultsMode ? (
@@ -411,7 +411,7 @@ function App() {
               </main>
 
               <footer className="footer">
-                <p>Tawtheeq &middot; Document Validation System</p>
+                <p>Audit Siddhi &middot; Document Validation System</p>
               </footer>
             </>
           )}
@@ -425,7 +425,7 @@ function App() {
             <IndianXBRL onStageChange={setIndianStage} />
           </main>
           <footer className="footer">
-            <p>Tawtheeq &middot; Indian XBRL Generator (ICAI Taxonomy 2016-03-31)</p>
+            <p>Audit Siddhi &middot; Indian XBRL Generator (ICAI Taxonomy 2016-03-31)</p>
           </footer>
         </>
       )}
@@ -437,7 +437,7 @@ function App() {
             <PdfTables onStageChange={setTablesStage} />
           </main>
           <footer className="footer">
-            <p>Tawtheeq &middot; Generic PDF Table Extraction</p>
+            <p>Audit Siddhi &middot; Generic PDF Table Extraction</p>
           </footer>
         </>
       )}

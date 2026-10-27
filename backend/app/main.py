@@ -7,7 +7,7 @@ from app.routes.validate import router as validate_router
 from app.routes.xbrl_india import router as xbrl_india_router
 from app.routes.xbrl_saudi import router as xbrl_saudi_router
 
-app = FastAPI(title="Tawthiq API", version="0.1.0")
+app = FastAPI(title="Audit Siddhi API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,

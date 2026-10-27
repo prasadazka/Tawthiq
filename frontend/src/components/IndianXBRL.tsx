@@ -111,7 +111,7 @@ export default function IndianXBRL({ onStageChange }: IndianXBRLProps = {}) {
             <h1>Indian XBRL Generation</h1>
             <p className="hero-sub">
               Upload the audit-report PDF and the CA's working Excel.
-              Tawthiq merges both sources, validates against MCA rules, and
+              Audit Siddhi merges both sources, validates against MCA rules, and
               produces a ready-to-submit XBRL XML.
             </p>
           </div>

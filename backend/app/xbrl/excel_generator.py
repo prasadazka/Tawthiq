@@ -257,7 +257,7 @@ def _write_auditor_block(wb: Workbook, items: list, data: dict) -> int:
 
 # ── public API ───────────────────────────────────────────────────────────────
 
-def generate_excel(data: dict, filename_base: str = "tawthiq_xbrl") -> ExcelResult:
+def generate_excel(data: dict, filename_base: str = "audit_siddhi_xbrl") -> ExcelResult:
     """Build the Excel by loading the template and applying the mapping."""
     try:
         if not TEMPLATE_PATH.exists():

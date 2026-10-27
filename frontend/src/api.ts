@@ -257,10 +257,10 @@ export async function generateSaudiXBRL(
     xml,
     byteSize: blob.size,
     filename,
-    total: parseInt(res.headers.get("x-tawthiq-concepts-total") || "0", 10),
-    found: parseInt(res.headers.get("x-tawthiq-concepts-found") || "0", 10),
-    coveragePct: parseFloat(res.headers.get("x-tawthiq-coverage-pct") || "0"),
-    elapsedSeconds: parseFloat(res.headers.get("x-tawthiq-elapsed-seconds") || "0"),
+    total: parseInt(res.headers.get("x-audit-siddhi-concepts-total") || "0", 10),
+    found: parseInt(res.headers.get("x-audit-siddhi-concepts-found") || "0", 10),
+    coveragePct: parseFloat(res.headers.get("x-audit-siddhi-coverage-pct") || "0"),
+    elapsedSeconds: parseFloat(res.headers.get("x-audit-siddhi-elapsed-seconds") || "0"),
   };
 }
 
@@ -307,7 +307,7 @@ export async function downloadExcelFromJSON(
   const blob = await res.blob();
   const disposition = res.headers.get("content-disposition") || "";
   const m = disposition.match(/filename="([^"]+)"/);
-  return { blob, filename: m ? m[1] : "tawthiq_xbrl.xlsx" };
+  return { blob, filename: m ? m[1] : "audit_siddhi_xbrl.xlsx" };
 }
 
 export async function generateIndianXBRL(
@@ -348,10 +348,10 @@ export async function generateIndianXBRL(
   return {
     blob,
     filename: filenameMatch ? filenameMatch[1] : "output.xml",
-    factCount: parseInt(res.headers.get("x-tawthiq-facts") || "0", 10),
-    contextCount: parseInt(res.headers.get("x-tawthiq-contexts") || "0", 10),
-    validationPassed: res.headers.get("x-tawthiq-validation-passed") === "true",
-    warnings: parseInt(res.headers.get("x-tawthiq-warnings") || "0", 10),
-    elapsedSeconds: parseFloat(res.headers.get("x-tawthiq-elapsed-seconds") || "0"),
+    factCount: parseInt(res.headers.get("x-audit-siddhi-facts") || "0", 10),
+    contextCount: parseInt(res.headers.get("x-audit-siddhi-contexts") || "0", 10),
+    validationPassed: res.headers.get("x-audit-siddhi-validation-passed") === "true",
+    warnings: parseInt(res.headers.get("x-audit-siddhi-warnings") || "0", 10),
+    elapsedSeconds: parseFloat(res.headers.get("x-audit-siddhi-elapsed-seconds") || "0"),
   };
 }

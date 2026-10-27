@@ -55,17 +55,17 @@ async def generate(req: GenerateRequest):
     elapsed = round(time.time() - t_total, 1)
     headers = {
         "Content-Disposition": f'attachment; filename="{req.filename}"',
-        "X-Tawthiq-Concepts-Total": str(data_total),
-        "X-Tawthiq-Concepts-Direct": str(direct_found),
-        "X-Tawthiq-Concepts-Found": str(total_found),
-        "X-Tawthiq-Coverage-Pct": f"{facts.coverage_pct}",
-        "X-Tawthiq-Elapsed-Seconds": f"{elapsed}",
-        "X-Tawthiq-Map-Seconds": f"{round(t_after_map - t_total, 2)}",
-        "X-Tawthiq-AI-Seconds": f"{round(t_after_ai - t_after_map, 1)}",
+        "X-Audit-Siddhi-Concepts-Total": str(data_total),
+        "X-Audit-Siddhi-Concepts-Direct": str(direct_found),
+        "X-Audit-Siddhi-Concepts-Found": str(total_found),
+        "X-Audit-Siddhi-Coverage-Pct": f"{facts.coverage_pct}",
+        "X-Audit-Siddhi-Elapsed-Seconds": f"{elapsed}",
+        "X-Audit-Siddhi-Map-Seconds": f"{round(t_after_map - t_total, 2)}",
+        "X-Audit-Siddhi-AI-Seconds": f"{round(t_after_ai - t_after_map, 1)}",
         "Access-Control-Expose-Headers": (
-            "X-Tawthiq-Concepts-Total,X-Tawthiq-Concepts-Direct,"
-            "X-Tawthiq-Concepts-Found,X-Tawthiq-Coverage-Pct,"
-            "X-Tawthiq-Elapsed-Seconds,X-Tawthiq-Map-Seconds,X-Tawthiq-AI-Seconds"
+            "X-Audit-Siddhi-Concepts-Total,X-Audit-Siddhi-Concepts-Direct,"
+            "X-Audit-Siddhi-Concepts-Found,X-Audit-Siddhi-Coverage-Pct,"
+            "X-Audit-Siddhi-Elapsed-Seconds,X-Audit-Siddhi-Map-Seconds,X-Audit-Siddhi-AI-Seconds"
         ),
     }
     return Response(content=xml, media_type="application/xml", headers=headers)

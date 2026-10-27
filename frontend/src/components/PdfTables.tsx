@@ -57,7 +57,7 @@ export default function PdfTables({ onStageChange }: Props = {}) {
             <h1>PDF Table Extraction</h1>
             <p className="hero-sub">
               Upload any PDF — financial statements, technical reports, audit
-              reports. Tawthiq finds every table inside, extracts the structured
+              reports. Audit Siddhi finds every table inside, extracts the structured
               data, and shows it side by side.
             </p>
           </div>
